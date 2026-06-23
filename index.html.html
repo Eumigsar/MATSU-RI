@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Matsu Ri - A Jornada do Discípulo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js">&lt;/script&gt;
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">&lt;/script&gt;
+    <script src="https://cdn.tailwindcss.com">&lt;/script&gt;
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+    &lt;style&gt;
+        body { margin: 0; background-color: #1a1a1a; font-family: 'Inter', sans-serif; overflow: hidden; }
+        .font-chinese { font-family: 'Noto Sans SC', sans-serif; }
+        .font-title { font-family: 'ZCOOL XiaoWei', serif; }
+        #game-canvas { border: 6px solid #5d2e13; border-radius: 12px; }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body class=&#34;flex items-center justify-center h-screen&#34;&gt;
+
+    <!-- TELA DE LOGIN -->
+    <div id="login-overlay" class="absolute inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div class="bg-[#F5F2E9] p-8 rounded-2xl border-4 border-[#8b4513] w-full max-w-md shadow-2xl">
+            <h1 class="font-title text-4xl text-[#8b4513] text-center mb-6">Matsu Ri&lt;/h1&gt;
+            <p class="text-gray-600 text-center mb-8">Inicie sua jornada espiritual no Mandarim</p>
+            <input id="email" type="email" placeholder="Seu E-mail" class="w-full p-4 mb-4 rounded-xl border-2 border-gray-300 focus:border-[#AA0000] outline-none">
+            <input id="password" type="password" placeholder="Sua Senha" class="w-full p-4 mb-6 rounded-xl border-2 border-gray-300 focus:border-[#AA0000] outline-none">
+            <div class="flex gap-2">
+                <button onclick="handleLogin()" class="flex-1 bg-[#AA0000] text-white py-4 rounded-xl font-bold hover:bg-red-800 transition">Entrar&lt;/button&gt;
+                <button onclick="handleSignUp()" class="flex-1 bg-white border-2 border-[#AA0000] text-[#AA0000] py-4 rounded-xl font-bold hover:bg-gray-100 transition">Cadastrar&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+
+    
