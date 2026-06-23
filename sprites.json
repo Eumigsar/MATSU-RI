@@ -1,0 +1,88 @@
+{
+  "project": "Matsuri Pixel Art Lo-Fi Character Pack v1",
+  "style": "16-bit classic RPG, transparent PNG, nearest-neighbor scaling",
+  "frame": {
+    "width": 32,
+    "height": 32
+  },
+  "spritesheet_layout": {
+    "columns": 4,
+    "rows": 4,
+    "directions": [
+      "down",
+      "left",
+      "right",
+      "up"
+    ],
+    "frames_per_direction": 4
+  },
+  "animation": {
+    "idle": {
+      "frames": [
+        1
+      ],
+      "fps": 1
+    },
+    "walk_down": {
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 8
+    },
+    "walk_left": {
+      "row": 1,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 8
+    },
+    "walk_right": {
+      "row": 2,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 8
+    },
+    "walk_up": {
+      "row": 3,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 8
+    }
+  },
+  "files": {
+    "player_apprentice_blue": "assets/sprites/characters/player_apprentice_blue_walk.png",
+    "player_apprentice_red": "assets/sprites/characters/player_apprentice_red_walk.png",
+    "player_apprentice_jade": "assets/sprites/characters/player_apprentice_jade_walk.png",
+    "sifu_liang": "assets/sprites/characters/sifu_liang_walk.png",
+    "hua_lan": "assets/sprites/characters/hua_lan_walk.png",
+    "wen_bo": "assets/sprites/characters/wen_bo_walk.png",
+    "grandma_zhang": "assets/sprites/characters/grandma_zhang_walk.png",
+    "little_wu": "assets/sprites/characters/little_wu_walk.png",
+    "xiao_long": "assets/sprites/mascots/xiao_long_paper_dragon_float.png",
+    "scholar_sash_overlay": "assets/sprites/cosmetics/scholar_sash_overlay.png"
+  },
+  "portraits": {
+    "player": "assets/portraits/player_apprentice_portrait.png",
+    "sifu_liang": "assets/portraits/sifu_liang_portrait.png",
+    "hua_lan": "assets/portraits/hua_lan_portrait.png",
+    "wen_bo": "assets/portraits/wen_bo_portrait.png",
+    "grandma_zhang": "assets/portraits/grandma_zhang_portrait.png",
+    "little_wu": "assets/portraits/little_wu_portrait.png"
+  },
+  "license_note": "Original procedural pixel art generated for Matsuri. You may use and modify in this project."
+}
