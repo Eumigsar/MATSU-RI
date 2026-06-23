@@ -1,24 +1,31 @@
-# 🏮 Matsuri: Escola de Mandarim RPG (MVP 0.1)
+# Matsuri RPG - MVP 0.1
 
-Matsuri é um RPG educacional web projetado para ensinar Mandarim através da imersão e gameplay. Este repositório contém a **Vertical Slice 0.1**, focada na validação do ciclo de aprendizado e persistência local.
+**Matsuri** é um RPG educacional projetado para ensinar Mandarim de forma imersiva. Nesta versão MVP-0.1 ("O Despertar do Escriba"), validamos o ciclo básico de exploração e aprendizado de caracteres (Hanzi).
 
-## 🚀 Funcionalidades do MVP 0.1
-- **Exploração:** Movimentação em mapa 2D usando PixiJS.
-- **Aprendizado:** Interação com totens de Hanzi.
-- **Persistência:** Salvamento de progresso via LocalStorage.
-- **UI/UX:** Interface inspirada na cultura tradicional chinesa com feedback visual.
+## 🚀 Como Jogar
+1. Baixe o arquivo `index.html`.
+2. Abra-o em qualquer navegador moderno (Chrome, Firefox, Edge).
+3. **Controles:**
+   - Use **WASD** ou as **Setas do Teclado** para mover o personagem.
 
-## 🛠️ Tecnologias
-- **Engine:** [PixiJS v7](https://pixijs.com/)
-- **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
-- **Linguagem:** JavaScript (Vanilla)
-- **Persistência:** LocalStorage API
+## 🎯 Objetivo do MVP
+O jogador deve explorar a pequena vila e encontrar os **5 totens místicos** que guardam os primeiros Hanzi:
+- 一 (um)
+- 二 (dois)
+- 三 (três)
+- 人 (pessoa)
+- 大 (grande)
 
-## 🕹️ Como Jogar
-1. Clone este repositório ou baixe o arquivo `index.html`.
-2. Abra o arquivo `index.html` em qualquer navegador moderno.
-3. Use **WASD** ou as **SETAS** para mover o personagem (bloco vermelho).
-4. Clique no caractere **一** para aprender seu significado e salvar seu progresso.
+Ao interagir com todos eles, você completa a missão e recebe sua primeira recompensa visual.
 
-## 📜 Licença
-Este projeto está sob a licença MIT.
+## 🛠️ Tecnologias Utilizadas
+- **PixiJS v7.2.4:** Renderização do mapa e personagens.
+- **Tailwind CSS:** Interface de usuário (HUD e Modais).
+- **LocalStorage:** Persistência de dados local no navegador.
+
+## 🌍 Como Publicar no GitHub Pages
+1. Crie um repositório no GitHub chamado `matsuri`.
+2. Suba o arquivo `index.html`.
+3. Vá em **Settings** > **Pages**.
+4. Em **Build and deployment**, selecione a branch `main`.
+5. Salve e aguarde o link (ex: `https://seu-usuario.github.io/matsuri/`).
