@@ -3,127 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matsuri MVP 0.1 - Corrigido</title>
-    <!-- Bibliotecas Externas -->
+    <title>Matsuri RPG</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@700&display=swap" rel="stylesheet">
-    
     <style>
-        body { margin: 0; background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
-        #canvas-container { position: relative; border: 8px solid #5d2e13; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-        .hanzi-text { font-family: 'Noto Sans SC', sans-serif; }
-        /* Garante que o texto do Hanzi seja visível mesmo se a fonte demorar a carregar */
-        canvas { background-color: #F5F2E9; }
+        body { margin: 0; background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #canvas-container { position: relative; border: 6px solid #5d2e13; border-radius: 15px; overflow: hidden; }
+        .hanzi { font-family: 'Noto Sans SC', sans-serif; }
     </style>
 </head>
 <body>
-
     <div id="canvas-container">
-        <!-- Overlay da UI (HTML sobre o Canvas) -->
-        <div id="ui-layer" class="absolute inset-0 pointer-events-none flex items-center justify-center">
-            
-            <!-- Modal de Aprendizado -->
-            <div id="learning-modal" class="hidden pointer-events-auto bg-[#F5F2E9] p-10 rounded-2xl text-center border-4 border-[#8b4513] w-80 shadow-2xl">
-                <div class="text-sm text-amber-800 font-bold mb-2 tracking-widest uppercase">Novo Caractere</div>
-                <h1 class="hanzi-text text-9xl mb-2 text-[#1a1a1a]">一</h1>
+        <div id="ui" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div id="modal" class="hidden pointer-events-auto bg-[#F5F2E9] p-10 rounded-2xl text-center border-4 border-[#8b4513] w-80 shadow-2xl">
+                <h1 class="hanzi text-9xl mb-4 text-[#1a1a1a]">一</h1>
                 <p class="text-2xl text-gray-500 italic mb-1">yī</p>
                 <p class="text-xl font-bold text-gray-800 mb-8">Número Um</p>
-                <button onclick="learn()" class="bg-[#AA0000] hover:bg-red-800 text-white w-full py-4 rounded-xl font-bold text-lg shadow-lg transform transition active:scale-95">
-                    CULTIVAR QI
-                </button>
+                <button onclick="learn()" class="bg-[#AA0000] text-white w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition">CULTIVAR QI</button>
             </div>
-
         </div>
     </div>
-
     <script>
-        // Prevenir o scroll das setas do teclado
-        window.addEventListener("keydown", function(e) {
-            if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
-                e.preventDefault();
-            }
-        }, false);
-
-        // Inicialização do Jogo
-        let app;
-        let player;
-        let totem;
-        let keys = {};
-
+        let app, player, totem, keys = {};
         window.onload = function() {
-            // 1. Criar Aplicação Pixi
-            app = new PIXI.Application({
-                width: 800,
-                height: 600,
-                backgroundColor: 0xF5F2E9, // Cor de papel antigo
-                antialias: true
-            });
+            app = new PIXI.Application({ width: 800, height: 600, backgroundColor: 0xF5F2E9 });
             document.getElementById('canvas-container').appendChild(app.view);
-
-            // 2. Criar Jogador (Bloco Vermelho)
             player = new PIXI.Graphics();
-            player.beginFill(0xAA0000);
-            player.drawRoundedRect(0, 0, 45, 45, 8);
-            player.endFill();
-            player.x = 400;
-            player.y = 300;
+            player.beginFill(0xAA0000).drawRoundedRect(0, 0, 45, 45, 8).endFill();
+            player.x = 400; player.y = 300;
             app.stage.addChild(player);
-
-            // 3. Criar Totem Hanzi
-            const style = new PIXI.TextStyle({
-                fontFamily: 'Noto Sans SC',
-                fontSize: 80,
-                fill: '#1a1a1a'
-            });
-
-            // Verifica se já aprendeu antes de mostrar
             if (localStorage.getItem('matsuri_learned_1') !== 'true') {
-                totem = new PIXI.Text('一', style);
-                totem.x = 150;
-                totem.y = 150;
-                totem.eventMode = 'static'; // PixiJS v7+ usa eventMode
-                totem.cursor = 'pointer';
-                
-                // Interação de Clique
-                totem.on('pointerdown', () => {
-                    document.getElementById('learning-modal').classList.remove('hidden');
-                });
-
+                totem = new PIXI.Text('一', { fontFamily: 'Noto Sans SC', fontSize: 80, fill: '#1a1a1a' });
+                totem.x = 150; totem.y = 150; totem.eventMode = 'static'; totem.cursor = 'pointer';
+                totem.on('pointerdown', () => document.getElementById('modal').classList.remove('hidden'));
                 app.stage.addChild(totem);
             }
-
-            // 4. Loop de Movimento
-            window.addEventListener("keydown", e => keys[e.code] = true);
+            window.addEventListener("keydown", e => { keys[e.code] = true; if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault(); });
             window.addEventListener("keyup", e => keys[e.code] = false);
-
             app.ticker.add((delta) => {
-                const speed = 5 * delta;
-                if (keys["ArrowUp"] || keys["KeyW"]) player.y -= speed;
-                if (keys["ArrowDown"] || keys["KeyS"]) player.y += speed;
-                if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= speed;
-                if (keys["ArrowRight"] || keys["KeyD"]) player.x += speed;
-
-                // Limites da tela
-                player.x = Math.max(0, Math.min(800 - 45, player.x));
-                player.y = Math.max(0, Math.min(600 - 45, player.y));
+                const s = 5 * delta;
+                if (keys["ArrowUp"] || keys["KeyW"]) player.y -= s;
+                if (keys["ArrowDown"] || keys["KeyS"]) player.y += s;
+                if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= s;
+                if (keys["ArrowRight"] || keys["KeyD"]) player.x += s;
+                player.x = Math.max(0, Math.min(800-45, player.x));
+                player.y = Math.max(0, Math.min(600-45, player.y));
             });
         };
-
-        // 5. Função de Sucesso
         function learn() {
             localStorage.setItem('matsuri_learned_1', 'true');
-            
-            // Esconde a modal
-            document.getElementById('learning-modal').classList.add('hidden');
-            
-            // Remove o totem do mapa com efeito simples
-            if (totem) {
-                app.stage.removeChild(totem);
-            }
-
-            alert("CONQUISTA: Você aprendeu o caractere 一 (yī)! \n\nO progresso foi salvo. Tente recarregar a página (F5) para ver que ele não voltará.");
+            document.getElementById('modal').classList.add('hidden');
+            if (totem) app.stage.removeChild(totem);
+            alert("Sucesso! Você aprendeu o caractere 一 (yī).");
         }
     </script>
 </body>
 </html>
+
