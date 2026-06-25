@@ -45,6 +45,7 @@ export function GameScene() {
     if (!containerRef.current) return
 
     let app: PIXI.Application
+    let destroyed = false
     const keys: Record<string, boolean> = {}
     let player: PIXI.Graphics
     let playerShadow: PIXI.Graphics
@@ -53,7 +54,7 @@ export function GameScene() {
       app = new PIXI.Application()
       await app.init({ width: W, height: H, background: 0xF5F2E9, antialias: true })
 
-      if (!containerRef.current) return
+      if (!containerRef.current || destroyed) return
       containerRef.current.appendChild(app.canvas as HTMLCanvasElement)
 
       // ── Background zones ──────────────────────────────────────────────
@@ -252,9 +253,10 @@ export function GameScene() {
     init()
 
     return () => {
+      destroyed = true
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
-      app?.destroy(true)
+      try { app?.destroy(true) } catch (_) { /* ignore double-destroy */ }
     }
   }, [])
 
