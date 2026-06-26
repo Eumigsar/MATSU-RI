@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #1A1A1A;
+  }
+
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    -webkit-font-smoothing: antialiased;
+    color: #1A1A1A;
+  }
+}
+
+@layer utilities {
+  .font-hanzi {
+    font-family: 'Noto Serif SC', serif;
+  }
+  .font-display {
+    font-family: 'Cinzel', serif;
+  }
+}
+
+/* PixiJS canvas pixel-perfect */
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
