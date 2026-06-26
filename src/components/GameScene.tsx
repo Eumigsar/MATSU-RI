@@ -36,6 +36,12 @@ const K = {
   red: 0xAA0000, redB: 0xCC2020, redD: 0x880000,
 }
 
+// Ground atlas tile grid: 128×128 per tile, 12 cols × 8 rows
+// Row 0: grass(0), dirt(4), cobble(9), light-stone(10)
+// Row 1: sandy(0), ornate(3), marble(4), gray-stone(5), wood(10)
+// Row 2: water(7)
+type GroundTiler = (col: number, row: number, w: number, h: number) => PIXI.TilingSprite
+
 function rng(a: number, b: number) {
   return (((a * 1103515245 + 12345 + b * 214013) >>> 0) & 0x7fffffff) / 0x7fffffff
 }
@@ -58,43 +64,6 @@ const ORBS: OrbData[] = [
 // ─────────────────────────────────────────────────────────────────
 // Drawing helpers
 // ─────────────────────────────────────────────────────────────────
-
-function drawGrass(g: PIXI.Graphics, x: number, y: number, w: number, h: number) {
-  g.rect(x, y, w, h).fill(K.grass)
-  for (let i = 0; i < Math.floor(w * h / 1400); i++) {
-    g.ellipse(x + rng(i,1)*w, y + rng(i,2)*h, 22 + rng(i,3)*30, 9 + rng(i,4)*12).fill({ color: K.grassD, alpha: 0.38 })
-  }
-  for (let i = 0; i < Math.floor(w * h / 2200); i++) {
-    g.ellipse(x + rng(i+80,1)*w, y + rng(i+80,2)*h, 14 + rng(i+80,3)*18, 6 + rng(i+80,4)*8).fill({ color: K.grassL, alpha: 0.28 })
-  }
-}
-
-function drawStoneTile(g: PIXI.Graphics, x: number, y: number, w: number, h: number) {
-  g.rect(x, y, w, h).fill(K.stone)
-  const tw = 50, th = 34
-  for (let row = 0; row * th < h + th; row++) {
-    for (let col = 0; col * tw < w + tw; col++) {
-      const ox = row % 2 === 0 ? 0 : tw / 2
-      const tx = x + col * tw - ox, ty = y + row * th
-      if (tx + tw > x && tx < x + w) {
-        const l = Math.max(tx, x), r = Math.min(tx + tw - 2, x + w)
-        if (r > l) {
-          g.rect(l + 1, ty + 1, r - l - 1, th - 2).fill({ color: K.stoneL, alpha: 0.55 })
-          g.rect(l + 1, ty + 1, r - l - 1, 2).fill({ color: 0xFFFFFF, alpha: 0.08 })
-        }
-      }
-    }
-  }
-}
-
-function drawCobble(g: PIXI.Graphics, x: number, y: number, w: number, h: number) {
-  g.rect(x, y, w, h).fill(K.cobble)
-  for (let i = 0; i < Math.floor(w * h / 380); i++) {
-    const cx = x + rng(i,7)*w, cy = y + rng(i,8)*h
-    const cr = 9 + rng(i,9)*11
-    g.ellipse(cx, cy, cr, cr * 0.62).fill({ color: i%3===0?K.stoneD:K.cobbleL, alpha: 0.45 })
-  }
-}
 
 function drawDirt(g: PIXI.Graphics, x: number, y: number, w: number, h: number) {
   g.rect(x, y, w, h).fill(K.dirt)
@@ -343,12 +312,13 @@ function drawSign(cont: PIXI.Container, x: number, y: number, text: string) {
 // Zone builders
 // ─────────────────────────────────────────────────────────────────
 
-function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container) {
-  const g = new PIXI.Graphics()
-  drawGrass(g, 0, 580, 560, 320)
-  drawStoneTile(g, 60, 660, 420, 200)
-  g.rect(0, 820, 560, 80).fill(K.grassD)
-  ground.addChild(g)
+function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
+  // Grass base
+  const grassBase = gt(0, 0, 560, 320); grassBase.x = 0; grassBase.y = 580; ground.addChild(grassBase)
+  // Stone courtyard
+  const court = gt(5, 1, 420, 200); court.x = 60; court.y = 660; ground.addChild(court)
+  // Dark grass strip at world bottom
+  const grassBot = gt(1, 0, 560, 80); grassBot.x = 0; grassBot.y = 820; ground.addChild(grassBot)
 
   const ow = new PIXI.Graphics()
   drawStoneWall(ow, 0, 640, 60, 50)
@@ -413,16 +383,15 @@ function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: P
   objs.addChild(rope)
 }
 
-function buildZone2Bamboo(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container) {
-  const g=new PIXI.Graphics()
-  drawGrass(g, 540, 580, 540, 320)
-  drawDirt(g, 590, 680, 70, 200)
-  drawDirt(g, 780, 660, 80, 220)
-  drawDirt(g, 950, 670, 120, 210)
-  // Stream bed
-  g.rect(718, 600, 70, 300).fill(K.stoneD)
-  drawWater(g, 724, 604, 58, 296)
-  ground.addChild(g)
+function buildZone2Bamboo(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
+  const grassBase = gt(0, 0, 540, 320); grassBase.x = 540; grassBase.y = 580; ground.addChild(grassBase)
+  // Dirt clearings in bamboo
+  const d1 = gt(4, 0, 70, 200); d1.x = 590; d1.y = 680; ground.addChild(d1)
+  const d2 = gt(4, 0, 80, 220); d2.x = 780; d2.y = 660; ground.addChild(d2)
+  const d3 = gt(4, 0, 120, 210); d3.x = 950; d3.y = 670; ground.addChild(d3)
+  // Stream bed (stone) + water tiles
+  const bedG = new PIXI.Graphics(); bedG.rect(718, 600, 70, 300).fill(K.stoneD); ground.addChild(bedG)
+  const waterStr = gt(7, 2, 58, 296); waterStr.x = 724; waterStr.y = 604; ground.addChild(waterStr)
 
   // Dense bamboo clusters
   for (let i=0;i<8;i++) drawBamboo(objs, 550+i*18, GY, 4, 160+rng(i,60)*60)
@@ -456,15 +425,16 @@ function buildZone2Bamboo(ground: PIXI.Container, objs: PIXI.Container, fore: PI
   drawSign(objs, 760, GY, '清溪橋')
 }
 
-function buildZone3Village(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container) {
-  const g=new PIXI.Graphics()
-  drawGrass(g, 1080, 580, 540, 320)
-  drawCobble(g, 1120, 680, 460, 180)
-  // Fish pond
-  g.ellipse(1560, GY+30, 55, 38).fill(K.stoneD)
-  drawWater(g, 1508, GY-2, 104, 64)
-  g.ellipse(1560, GY+32, 50, 34).fill(K.wM)
-  ground.addChild(g)
+function buildZone3Village(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
+  const grassBase = gt(0, 0, 540, 320); grassBase.x = 1080; grassBase.y = 580; ground.addChild(grassBase)
+  // Village cobblestone street
+  const street = gt(9, 0, 460, 180); street.x = 1120; street.y = 680; ground.addChild(street)
+  // Fish pond (ellipse shape — keep as vector, overlay water tile)
+  const pondG = new PIXI.Graphics()
+  pondG.ellipse(1560, GY+30, 55, 38).fill(K.stoneD)
+  drawWater(pondG, 1508, GY-2, 104, 64)
+  pondG.ellipse(1560, GY+32, 50, 34).fill(K.wM)
+  ground.addChild(pondG)
 
   // Tea house
   drawBuilding(objs, 1090, GY, 170, 200, { sign:'茶館', cols:3, wallColor:0xF0E4C8 })
@@ -527,34 +497,31 @@ function buildZone3Village(ground: PIXI.Container, objs: PIXI.Container, fore: P
   objs.addChild(libSteps)
 }
 
-function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container) {
-  const g=new PIXI.Graphics()
-  // Rising terrain
-  const terr=new PIXI.Graphics()
+function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
+  // Base grass layer
+  const grassBase = gt(0, 0, 540, 420); grassBase.x = 1620; grassBase.y = 480; ground.addChild(grassBase)
+  // Rising terrain polygon overlay (dark grass on elevated areas)
+  const terr = new PIXI.Graphics()
   terr.poly([1620,900, 1620,GY, 1680,GY-20, 1780,GY-60, 1900,GY-130, 2000,GY-160, 2100,GY-150, 2160,GY-80, 2160,900]).fill(K.grassD)
-  g.addChild?.(terr)
-  drawGrass(g, 1620, 580, 540, 320)
-  // Rocky cliff edges
-  drawStoneWall(g, 1620, GY-100, 540, 16)
-  // Stone path winding up
-  const path=new PIXI.Graphics()
-  drawDirt(path, 1640, GY-15, 80, 120)
-  drawDirt(path, 1720, GY-55, 80, 80)
-  drawDirt(path, 1800, GY-105, 80, 70)
-  drawDirt(path, 1880, GY-140, 120, 60)
-  drawDirt(path, 2000, GY-160, 160, 50)
-  g.addChild?.(path)
-  ground.addChild(g)
-
-  // Actual ground graphics
-  const gr=new PIXI.Graphics()
-  drawGrass(gr, 1620, 580, 540, 200)
-  drawGrass(gr, 1620, 680, 540, 220)
-  // Rocky patches
-  gr.rect(1620, GY-120, 540, 20).fill(K.stone)
-  gr.rect(1800, GY-150, 240, 25).fill(K.stoneD)
-  gr.rect(2000, GY-170, 160, 20).fill(K.stone)
-  ground.addChild(gr)
+  ground.addChild(terr)
+  // Cliff/rock edge strip
+  const cliffG = new PIXI.Graphics()
+  drawStoneWall(cliffG, 1620, GY-100, 540, 16)
+  ground.addChild(cliffG)
+  // Dirt trails winding up
+  const dirtPath = new PIXI.Graphics()
+  drawDirt(dirtPath, 1640, GY-15, 80, 120)
+  drawDirt(dirtPath, 1720, GY-55, 80, 80)
+  drawDirt(dirtPath, 1800, GY-105, 80, 70)
+  drawDirt(dirtPath, 1880, GY-140, 120, 60)
+  drawDirt(dirtPath, 2000, GY-160, 160, 50)
+  ground.addChild(dirtPath)
+  // Rocky stone patches at cliff tops
+  const rockyG = new PIXI.Graphics()
+  rockyG.rect(1620, GY-120, 540, 20).fill(K.stone)
+  rockyG.rect(1800, GY-150, 240, 25).fill(K.stoneD)
+  rockyG.rect(2000, GY-170, 160, 20).fill(K.stone)
+  ground.addChild(rockyG)
 
   // Stone steps
   const sts=new PIXI.Graphics()
@@ -602,12 +569,12 @@ function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: 
   drawSign(objs, 2130, GY-160, '隱谷')
 }
 
-function buildZone5Temple(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container) {
-  const g=new PIXI.Graphics()
-  drawGrass(g, 2160, 580, 540, 320)
-  drawStoneTile(g, 2200, 650, 460, 220)
-  g.rect(2160, 820, 540, 80).fill(K.grassD)
-  ground.addChild(g)
+function buildZone5Temple(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
+  const grassBase = gt(0, 0, 540, 320); grassBase.x = 2160; grassBase.y = 580; ground.addChild(grassBase)
+  // Ornate stone courtyard for temple
+  const court = gt(3, 1, 460, 220); court.x = 2200; court.y = 650; ground.addChild(court)
+  // Dark grass at base
+  const grassBot = gt(1, 0, 540, 80); grassBot.x = 2160; grassBot.y = 820; ground.addChild(grassBot)
 
   // Grand paifang gate
   drawPaifang(objs, 2280, GY, 170)
@@ -766,6 +733,28 @@ export function GameScene() {
         return new PIXI.Sprite(tex)
       }
 
+      // ── Ground Atlas: terrain TilingSprites ────────────────────
+      const groundAtlasTex = await new Promise<PIXI.Texture>((resolve) => {
+        const img = new Image()
+        img.onload = () => {
+          const cv = document.createElement('canvas')
+          cv.width = img.width; cv.height = img.height
+          const ctx2d = cv.getContext('2d')!
+          ctx2d.drawImage(img, 0, 0)
+          resolve(PIXI.Texture.from(cv))
+        }
+        img.src = '/assets/ground-atlas.png'
+      })
+      const GTILE = 128
+      // Returns a TilingSprite from the ground atlas 12×8 grid
+      const gt = (col: number, row: number, w: number, h: number): PIXI.TilingSprite => {
+        const tex = new PIXI.Texture({
+          source: groundAtlasTex.source,
+          frame: new PIXI.Rectangle(col * GTILE, row * GTILE, GTILE, GTILE),
+        })
+        return new PIXI.TilingSprite({ texture: tex, width: w, height: h })
+      }
+
       // ── World container ────────────────────────────────────────
       const world = new PIXI.Container()
       app.stage.addChild(world)
@@ -782,11 +771,11 @@ export function GameScene() {
 
       // ── Build world ────────────────────────────────────────────
       buildBackground(bgLayer)
-      buildZone1Academy(groundLay, objLay, foreLayer)
-      buildZone2Bamboo(groundLay, objLay, foreLayer)
-      buildZone3Village(groundLay, objLay, foreLayer)
-      buildZone4Mountain(groundLay, objLay, foreLayer)
-      buildZone5Temple(groundLay, objLay, foreLayer)
+      buildZone1Academy(groundLay, objLay, foreLayer, gt)
+      buildZone2Bamboo(groundLay, objLay, foreLayer, gt)
+      buildZone3Village(groundLay, objLay, foreLayer, gt)
+      buildZone4Mountain(groundLay, objLay, foreLayer, gt)
+      buildZone5Temple(groundLay, objLay, foreLayer, gt)
 
       // Zone transition signs
       drawSign(objLay, 540, GY, '竹林')
