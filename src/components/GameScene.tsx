@@ -243,7 +243,7 @@ function drawBuilding(cont: PIXI.Container, bx: number, by: number, bw: number, 
   g.rect(bx, by-bh+14, bw, 2).fill({ color:0xFFFFFF, alpha:0.12 })
   // Columns
   for (let i=0;i<cols;i++) {
-    const cx=bx+bw*i/(cols-1)-(i===cols-1?10:i===0?0:-5)
+    // column x unused — colX below handles positioning
     const colX = bx + (bw/(cols-1))*i - 5
     g.rect(colX, by-bh+14, 10, bh-14).fill(K.colR)
     g.rect(colX, by-bh+14, 3, bh-14).fill({ color:0xFF4444, alpha:0.18 })
@@ -911,18 +911,10 @@ export function GameScene() {
         { x:1508, y:GY-2, w:104, h:64 },     // pond zone 3
         { x:1916, y:GY-117, w:50, h:30 },    // waterfall pool
       ]
-      waterAreas.forEach((wa) => {
+      waterAreas.forEach((_wa) => {
         const wg2 = new PIXI.Graphics()
         partLay.addChild(wg2)
         waterGfx.push(wg2)
-      })
-
-      // ── Bamboo sway refs ───────────────────────────────────────
-      const bambooConts: PIXI.Container[] = []
-      objLay.children.forEach((c) => {
-        if (c instanceof PIXI.Container && c !== npc) {
-          // We'll sway all foreground containers slightly
-        }
       })
 
       // ── Camera state ───────────────────────────────────────────
