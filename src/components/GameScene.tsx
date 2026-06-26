@@ -739,6 +739,33 @@ export function GameScene() {
       if (!containerRef.current || destroyed) return
       containerRef.current.appendChild(app.canvas as HTMLCanvasElement)
 
+      // ── Tileset: load JPEG + remove white/grey background ──────
+      const tilesetTex = await new Promise<PIXI.Texture>((resolve) => {
+        const img = new Image()
+        img.onload = () => {
+          const cv = document.createElement('canvas')
+          cv.width = img.width; cv.height = img.height
+          const ctx = cv.getContext('2d')!
+          ctx.drawImage(img, 0, 0)
+          const id = ctx.getImageData(0, 0, cv.width, cv.height)
+          const d = id.data
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i], g = d[i+1], b = d[i+2]
+            const hi = Math.max(r, g, b), lo = Math.min(r, g, b)
+            // Remove pixels that are near-white or grey (JPEG background artifacts)
+            if (r > 185 && g > 185 && b > 185 && (hi - lo) < 35) d[i+3] = 0
+          }
+          ctx.putImageData(id, 0, 0)
+          resolve(PIXI.Texture.from(cv))
+        }
+        img.src = '/assets/tileset.png'
+      })
+      // Crop a region from the tileset as a sprite
+      const tileSprite = (x: number, y: number, w: number, h: number): PIXI.Sprite => {
+        const tex = new PIXI.Texture({ source: tilesetTex.source, frame: new PIXI.Rectangle(x, y, w, h) })
+        return new PIXI.Sprite(tex)
+      }
+
       // ── World container ────────────────────────────────────────
       const world = new PIXI.Container()
       app.stage.addChild(world)
@@ -818,19 +845,28 @@ export function GameScene() {
         orb.x = h.wx; orb.y = baseY
         orb.eventMode = 'static'; orb.cursor = 'pointer'
 
+        // Glow halo pulsing behind lantern
         const glow = new PIXI.Graphics()
-        glow.circle(0, 0, 44).fill({ color:tColorHex, alpha:0.1 })
-        const circle = new PIXI.Graphics()
-        circle.circle(0, 0, 28).fill({ color:tColorHex, alpha:0.88 })
-        circle.circle(0, 0, 28).stroke({ color:0xFFFFFF, width:2, alpha:0.55 })
-        circle.circle(-8, -10, 7).fill({ color:0xFFFFFF, alpha:0.25 })
-        const charText = new PIXI.Text({ text:h.hanzi, style:{ fontSize:28, fill:'#FFFFFF', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
-        charText.anchor.set(0.5)
-        const pinText = new PIXI.Text({ text:h.pinyin, style:{ fontSize:9, fill:'#FFFFFF', fontFamily:'Georgia,serif' } })
-        pinText.anchor.set(0.5, 0); pinText.y = 33; pinText.alpha = 0.75
+        glow.circle(0, 0, 40).fill({ color: tColorHex, alpha: 0.15 })
+
+        // Red lantern sprite from tileset (coords: 353,393 size 58×140 in 1408×768)
+        const lanternSpr = tileSprite(353, 393, 58, 140)
+        lanternSpr.anchor.set(0.5, 0.5)
+        lanternSpr.scale.set(0.58)
+
+        // Hanzi above the lantern
+        const charText = new PIXI.Text({ text: h.hanzi, style: { fontSize: 22, fill: '#FFF5D5', fontFamily: '"Noto Serif SC",serif', fontWeight: '700' } })
+        charText.anchor.set(0.5); charText.y = -62
+
+        // Pinyin below hanzi
+        const pinText = new PIXI.Text({ text: h.pinyin, style: { fontSize: 9, fill: '#FFE8B0', fontFamily: 'Georgia,serif' } })
+        pinText.anchor.set(0.5, 0); pinText.y = -44; pinText.alpha = 0.9
+
+        // Mastered star
         const star = new PIXI.Text({ text:'★', style:{ fontSize:14, fill:'#C9A84C' } })
-        star.anchor.set(0.5); star.x = 22; star.y = -22; star.visible = false
-        orb.addChild(glow, circle, charText, pinText, star)
+        star.anchor.set(0.5); star.x = 22; star.y = -70; star.visible = false
+
+        orb.addChild(glow, lanternSpr, charText, pinText, star)
         orb.on('pointerover', () => { orb.scale.set(1.1) })
         orb.on('pointerout',  () => { orb.scale.set(1.0) })
         orb.on('pointerdown', () => openLearningRef.current(h))
@@ -849,13 +885,17 @@ export function GameScene() {
 
       // ── Player ────────────────────────────────────────────────
       const playerShadow = new PIXI.Graphics()
-      playerShadow.ellipse(0, 0, 14, 5).fill({ color:0x000000, alpha:0.14 })
-      const player = new PIXI.Graphics()
-      player.circle(0, 0, 13).fill({ color:0xAA0000 })
-      player.circle(0, 0, 13).stroke({ color:0xFFFFFF, width:2.5 })
-      player.circle(-3, -5, 4).fill({ color:0xFFFFFF, alpha:0.7 })
+      playerShadow.ellipse(0, 0, 20, 7).fill({ color: 0x000000, alpha: 0.18 })
+
+      // Character sprite from tileset (first character, front frame ~730,2 size 72×92)
+      const playerSpr = tileSprite(730, 2, 72, 92)
+      playerSpr.anchor.set(0.5, 1.0)
+      playerSpr.scale.set(0.75)
+
+      const player = new PIXI.Container()
+      player.addChild(playerSpr)
       player.x = 210; player.y = GY
-      playerShadow.x = 210; playerShadow.y = GY + 14
+      playerShadow.x = 210; playerShadow.y = GY + 5
       charLay.addChild(playerShadow, player)
 
       // ── Falling leaves ────────────────────────────────────────
@@ -935,7 +975,10 @@ export function GameScene() {
         player.x = Math.max(16, Math.min(WW - 16, player.x))
         player.y = Math.max(520, Math.min(WH - 16, player.y))
         playerShadow.x = player.x + 4
-        playerShadow.y = player.y + 14
+        playerShadow.y = player.y + 5
+        // Flip character sprite to face movement direction
+        if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerSpr.scale.x = -0.75
+        else if (keys['ArrowRight'] || keys['d'] || keys['D']) playerSpr.scale.x = 0.75
 
         // Camera smooth follow
         targetCam.x = player.x - W / 2
