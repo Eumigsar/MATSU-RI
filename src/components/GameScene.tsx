@@ -36,11 +36,46 @@ const K = {
   red: 0xAA0000, redB: 0xCC2020, redD: 0x880000,
 }
 
-// Ground atlas tile grid: 128×128 per tile, 12 cols × 8 rows
-// Row 0: grass(0), dirt(4), cobble(9), light-stone(10)
-// Row 1: sandy(0), ornate(3), marble(4), gray-stone(5), wood(10)
-// Row 2: water(7)
-type GroundTiler = (col: number, row: number, w: number, h: number) => PIXI.TilingSprite
+// Ground atlas: 128×128 tiles, 12×8 grid
+// Nature atlas: transparent PNG — bamboo, cherry, bonsai, rocks (1536×1024)
+// Building atlas: transparent PNG — facades, gate, railings (1536×1024)
+type GroundTiler  = (col: number, row: number, w: number, h: number) => PIXI.TilingSprite
+type AtlasSpriter = (x: number, y: number, w: number, h: number) => PIXI.Sprite
+interface Ctx { gt: GroundTiler; bsp: AtlasSpriter; nsp: AtlasSpriter }
+
+// ── Nature-atlas sprite rects ─────────────────────────────────────
+const NA = {
+  BAMB_WIDE:    [32,  33, 514, 161] as const, // full bamboo cluster strip
+  BAMB_SM:      [32,  33,  85, 161] as const, // single thin bamboo
+  BAMB_MID:     [132, 33, 200, 161] as const, // medium dense cluster
+  CHERRY_1:     [847, 33, 210, 161] as const, // large cherry tree 1
+  CHERRY_2:     [1059,33, 188, 161] as const, // large cherry tree 2
+  CHERRY_3:     [1249,33, 176, 161] as const, // large cherry tree 3
+  BONSAI_1:     [27,  361, 218, 191] as const, // bonsai/pine 1
+  BONSAI_2:     [245, 361, 218, 191] as const, // bonsai/pine 2
+  BONSAI_3:     [463, 361, 218, 191] as const, // bonsai/pine 3
+  BONSAI_4:     [681, 361, 218, 191] as const, // bonsai/pine 4 (leaning)
+  ROCK_LG:      [31,  556, 210, 164] as const, // large rock group
+  ROCK_MED:     [240, 556, 195, 164] as const, // medium rock group
+  ROCK_SM:      [430, 556, 145, 164] as const, // small rocks
+} as const
+
+// ── Building-atlas sprite rects ───────────────────────────────────
+const BA = {
+  FAC_WIDE:     [229, 323, 328, 136] as const, // wide 4-bay facade
+  FAC_NARR:     [37,  323, 173, 136] as const, // narrow 2-bay facade
+  FAC_MED1:     [673, 323, 148, 136] as const, // medium module A
+  FAC_MED2:     [829, 323,  95, 136] as const, // medium module B
+  ARCH_OPEN:    [1374,323, 124, 136] as const, // open archway
+  FAC_B1:       [33,  501, 154, 124] as const, // facade-B type 1
+  FAC_B2:       [198, 501, 150, 124] as const, // facade-B type 2
+  FAC_B3:       [488, 501, 149, 124] as const, // facade-B type 3
+  DOORS:        [949, 501, 155, 124] as const, // wooden double doors
+  GATE_LG:      [676, 740, 611, 230] as const, // large paifang gate
+  GATE_SM:      [1293,740, 234, 230] as const, // smaller gate
+  RAILING_LG:   [41,  658, 303,  57] as const, // long stone railing
+  RAILING_RED:  [358, 658, 101,  57] as const, // red lacquer railing
+} as const
 
 function rng(a: number, b: number) {
   return (((a * 1103515245 + 12345 + b * 214013) >>> 0) & 0x7fffffff) / 0x7fffffff
@@ -80,13 +115,6 @@ function drawWater(g: PIXI.Graphics, x: number, y: number, w: number, h: number)
   }
 }
 
-function drawRock(g: PIXI.Graphics, x: number, y: number, s: number = 1) {
-  g.ellipse(x+8*s, y+4*s, 22*s, 14*s).fill({ color: 0x000000, alpha: 0.1 })
-  g.ellipse(x, y, 26*s, 17*s).fill(K.stoneD)
-  g.ellipse(x-10*s, y-7*s, 18*s, 12*s).fill(K.stone)
-  g.ellipse(x+8*s, y-5*s, 14*s, 10*s).fill(K.stoneL)
-  g.ellipse(x-4*s, y-11*s, 7*s, 4*s).fill({ color: 0xFFFFFF, alpha: 0.12 })
-}
 
 function drawStoneWall(g: PIXI.Graphics, x: number, y: number, w: number, h: number = 42) {
   g.rect(x, y, w, h).fill(K.stoneD)
@@ -131,172 +159,6 @@ function drawLantern(cont: PIXI.Container, x: number, y: number) {
   cont.addChild(g)
 }
 
-function drawTree(cont: PIXI.Container, cx: number, cy: number, type: 'cherry'|'pine'|'oak'|'plum', s: number=1) {
-  const g = new PIXI.Graphics()
-  const tw = 10*s, th = 55*s
-  g.ellipse(cx+10*s, cy+6*s, 28*s, 9*s).fill({ color:0x000000, alpha:0.1 })
-  g.rect(cx-tw/2, cy-th, tw, th).fill(K.bark)
-  g.rect(cx, cy-th, tw*0.3, th).fill({ color: K.woodD, alpha: 0.4 })
-  if (type==='cherry') {
-    const r=36*s
-    g.circle(cx, cy-th-r*0.75, r*1.08).fill(K.cherryD)
-    g.circle(cx-r*0.5, cy-th-r*0.48, r*0.88).fill(K.cherry)
-    g.circle(cx+r*0.48, cy-th-r*0.52, r*0.82).fill(K.cherry)
-    g.circle(cx, cy-th-r*0.38, r*0.88).fill(K.cherryB)
-    for (let i=0;i<14;i++) {
-      const a=(i/14)*Math.PI*2, br=r*(0.6+rng(i,20)*0.35)
-      g.ellipse(cx+Math.cos(a)*br*0.78, cy-th-r*0.55+Math.sin(a)*br*0.55, 4+rng(i,21)*4, 3+rng(i,22)*2).fill({ color:0xFFEEF5, alpha:0.55 })
-    }
-  } else if (type==='pine') {
-    const r=28*s
-    g.poly([cx, cy-th-r*2.1, cx-r*0.65, cy-th-r*1.1, cx+r*0.65, cy-th-r*1.1]).fill(K.pineL)
-    g.poly([cx, cy-th-r*1.45, cx-r*0.9, cy-th-r*0.45, cx+r*0.9, cy-th-r*0.45]).fill(K.pine)
-    g.poly([cx, cy-th-r*0.85, cx-r*1.18, cy-th+r*0.12, cx+r*1.18, cy-th+r*0.12]).fill(K.pineL)
-    g.poly([cx-r*0.3, cy-th-r*0.5, cx+r*0.3, cy-th-r*0.5, cx+r*1.18, cy-th+r*0.12, cx+r*0.5, cy-th+r*0.12]).fill({ color:0x000000, alpha:0.12 })
-  } else if (type==='oak') {
-    const r=38*s
-    g.circle(cx, cy-th-r*0.82, r).fill(K.leafD)
-    g.circle(cx-r*0.5, cy-th-r*0.52, r*0.82).fill(K.leaf)
-    g.circle(cx+r*0.42, cy-th-r*0.6, r*0.78).fill(K.leaf)
-    g.circle(cx, cy-th-r*1.05, r*0.68).fill(K.leafL)
-  } else {
-    const r=32*s
-    g.circle(cx, cy-th-r*0.7, r*0.95).fill(K.leafD)
-    g.circle(cx-r*0.42, cy-th-r*0.45, r*0.82).fill(0xC860A0)
-    g.circle(cx+r*0.38, cy-th-r*0.5, r*0.75).fill(0xE080B8)
-    g.circle(cx, cy-th-r*0.3, r*0.78).fill(0xFFAACC)
-  }
-  cont.addChild(g)
-}
-
-function drawBamboo(cont: PIXI.Container, cx: number, cy: number, count: number=5, h: number=190) {
-  const g = new PIXI.Graphics()
-  for (let i=0;i<count;i++) {
-    const ox=(i-count/2)*16+rng(i,30)*14-7
-    const sh=h+rng(i,31)*50-25
-    const sx=cx+ox
-    g.rect(sx-4, cy-sh, 8, sh).fill(K.bamb)
-    g.rect(sx-4, cy-sh, 3, sh).fill({ color:K.bambL, alpha:0.6 })
-    for (let n=0;n<7;n++) {
-      const ny=cy-sh+(n+1)*(sh/8)
-      g.rect(sx-5, ny-2, 10, 4).fill(K.bambN)
-      if (n>2 && rng(i*10+n,32)>0.38) {
-        const la=rng(i*10+n,33)*0.9-0.45
-        g.poly([sx,ny, sx+Math.cos(la)*28,ny+Math.sin(la)*11, sx+Math.cos(la+0.35)*22,ny+Math.sin(la+0.35)*8]).fill({ color:K.bambL, alpha:0.82 })
-      }
-    }
-    for (let l=0;l<3+Math.floor(rng(i,34)*3);l++) {
-      const la=(l/(3+Math.floor(rng(i,34)*3)))*Math.PI-0.5
-      g.poly([sx,cy-sh, sx+Math.cos(la)*32,cy-sh-13, sx+Math.cos(la+0.4)*24,cy-sh-8]).fill(K.bambL)
-    }
-  }
-  cont.addChild(g)
-}
-
-function drawBuilding(cont: PIXI.Container, bx: number, by: number, bw: number, bh: number, opts: {
-  sign?: string, wallColor?: number, roofColor?: number,
-  cols?: number, style?: string, door?: boolean
-} = {}) {
-  const { sign, wallColor=K.wall, roofColor=K.roof, cols=3, door=true } = opts
-  const g = new PIXI.Graphics()
-
-  // Shadow
-  g.ellipse(bx+bw/2+18, by+10, bw*0.55, 14).fill({ color:0x000000, alpha:0.12 })
-  // Foundation
-  g.rect(bx-8, by-bh, bw+16, 14).fill(K.stoneD)
-  g.rect(bx-6, by-bh+2, bw+12, 10).fill(K.stoneL)
-  // Walls
-  g.rect(bx, by-bh+14, bw, bh-14).fill(wallColor)
-  g.rect(bx, by-bh+14, 10, bh-14).fill({ color:0x000000, alpha:0.07 })
-  g.rect(bx+bw-8, by-bh+14, 8, bh-14).fill({ color:0x000000, alpha:0.05 })
-  g.rect(bx, by-bh+14, bw, 2).fill({ color:0xFFFFFF, alpha:0.12 })
-  // Columns
-  for (let i=0;i<cols;i++) {
-    // column x unused — colX below handles positioning
-    const colX = bx + (bw/(cols-1))*i - 5
-    g.rect(colX, by-bh+14, 10, bh-14).fill(K.colR)
-    g.rect(colX, by-bh+14, 3, bh-14).fill({ color:0xFF4444, alpha:0.18 })
-  }
-  // Door
-  if (door) {
-    const dw=bw*0.22, dh=bh*0.52, dx=bx+bw/2-dw/2, dy=by-dh
-    g.rect(dx, dy, dw, dh).fill(K.woodD)
-    g.rect(dx+2, dy+2, dw/2-3, dh-4).fill(K.wood)
-    g.rect(dx+dw/2+1, dy+2, dw/2-3, dh-4).fill(K.wood)
-    g.rect(dx, dy, dw, 8).fill(K.beam)
-    g.circle(dx+dw*0.3, by-dh*0.45, 4).fill(K.gold)
-    g.circle(dx+dw*0.7, by-dh*0.45, 4).fill(K.gold)
-  }
-  // Windows
-  if (bw > 100) {
-    for (const wx of [bx+bw*0.08, bx+bw*0.76]) {
-      const winW=bw*0.14, winH=bh*0.27, wy=by-bh*0.72
-      g.rect(wx, wy, winW, winH).fill(K.woodD)
-      g.rect(wx+2, wy+winH/2-1, winW-4, 2).fill(K.wood)
-      g.rect(wx+winW/2-1, wy+2, 2, winH-4).fill(K.wood)
-    }
-  }
-  cont.addChild(g)
-
-  // Roof layer
-  const rf = new PIXI.Graphics()
-  const oh=bw*0.2, rh=bh*0.55, rx=bx-oh, rw=bw+oh*2, ry=by-bh
-  rf.poly([rx+rw*0.07, ry+rh, rx+rw*0.28, ry+rh*0.12, rx+rw/2, ry, rx+rw*0.72, ry+rh*0.12, rx+rw*0.93, ry+rh]).fill(roofColor)
-  rf.poly([rx+rw*0.07, ry+rh, rx+rw*0.28, ry+rh*0.12, rx+rw/2, ry, rx+rw*0.22, ry+rh*0.4]).fill({ color:0xFFFFFF, alpha:0.04 })
-  for (let i=1;i<9;i++) {
-    const tx=rx+rw*(i/9)
-    rf.moveTo(tx, ry+2).lineTo(tx<rx+rw/2?rx+rw*0.07:rx+rw*0.93, ry+rh-4).stroke({ color:0x000000, width:0.5, alpha:0.25 })
-  }
-  rf.rect(rx+rw*0.07-3, ry+rh-6, rw*0.86+6, 7).fill(K.roofE)
-  rf.rect(rx+rw*0.25, ry-8, rw*0.5, 10).fill(K.roofL)
-  rf.circle(rx+rw*0.25-2, ry-3, 5).fill(K.goldL)
-  rf.circle(rx+rw*0.75+2, ry-3, 5).fill(K.goldL)
-  rf.poly([rx+rw*0.07-3, ry+rh-6, rx-16, ry+rh-20, rx+rw*0.1, ry+rh]).fill(roofColor)
-  rf.poly([rx+rw*0.93+3, ry+rh-6, rx+rw+16, ry+rh-20, rx+rw*0.9, ry+rh]).fill(roofColor)
-  if (sign) {
-    const sw=Math.min(bw*0.62, 130), sh=26
-    const sx=bx+bw/2-sw/2
-    rf.rect(sx, ry+4, sw, sh).fill(K.redD)
-    rf.rect(sx+2, ry+6, sw-4, sh-4).fill(K.red)
-    const t=new PIXI.Text({ text:sign, style:{ fontSize:13, fill:'#F0D050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
-    t.anchor.set(0.5,0.5); t.x=bx+bw/2; t.y=ry+sh/2+4
-    cont.addChild(t)
-  }
-  cont.addChild(rf)
-}
-
-function drawPaifang(cont: PIXI.Container, cx: number, cy: number, gw: number=160) {
-  const g=new PIXI.Graphics(), ph=190, pw=22
-  g.ellipse(cx, cy+10, gw/2+24, 13).fill({ color:0x000000, alpha:0.14 })
-  g.rect(cx-gw/2, cy-ph, pw, ph).fill(K.colRD)
-  g.rect(cx-gw/2, cy-ph, pw/3, ph).fill({ color:0xFF3333, alpha:0.18 })
-  g.rect(cx+gw/2-pw, cy-ph, pw, ph).fill(K.colRD)
-  g.rect(cx+gw/2-pw, cy-ph, pw/3, ph).fill({ color:0xFF3333, alpha:0.18 })
-  g.rect(cx-gw/2-28, cy-ph*0.62, 14, ph*0.62).fill(K.colRD)
-  g.rect(cx+gw/2+14, cy-ph*0.62, 14, ph*0.62).fill(K.colRD)
-  // Beams
-  g.rect(cx-gw/2-28, cy-ph*0.62-15, gw+70, 15).fill(K.beam)
-  g.rect(cx-gw/2-28, cy-ph*0.48-12, gw+70, 12).fill(K.beam)
-  // Upper roof
-  const rw1=gw+90, rx1=cx-rw1/2, ry1=cy-ph*0.62-15-48
-  g.poly([rx1+rw1*0.06,ry1+48, rx1+rw1/2,ry1, rx1+rw1*0.94,ry1+48, rx1+rw1,ry1+55, rx1,ry1+55]).fill(K.roof)
-  g.rect(rx1+rw1*0.22,ry1-8,rw1*0.56,10).fill(K.roofL)
-  g.poly([rx1,ry1+55, rx1-14,ry1+43, rx1+16,ry1+55]).fill(K.roofM)
-  g.poly([rx1+rw1,ry1+55, rx1+rw1+14,ry1+43, rx1+rw1-16,ry1+55]).fill(K.roofM)
-  g.rect(rx1-14,ry1+51,rw1+28,6).fill(K.roofE)
-  // Lower roof
-  const rw2=gw+140, rx2=cx-rw2/2, ry2=cy-ph*0.48-12-36
-  g.poly([rx2+rw2*0.06,ry2+36, rx2+rw2/2,ry2, rx2+rw2*0.94,ry2+36, rx2+rw2,ry2+42, rx2,ry2+42]).fill(K.roofM)
-  g.rect(rx2-18,ry2+38,rw2+36,5).fill(K.roofE)
-  g.poly([rx2,ry2+42, rx2-16,ry2+32, rx2+14,ry2+42]).fill(K.roof)
-  g.poly([rx2+rw2,ry2+42, rx2+rw2+16,ry2+32, rx2+rw2-14,ry2+42]).fill(K.roof)
-  // Plaque
-  g.rect(cx-48,ry1+4,96,28).fill(K.redD)
-  g.rect(cx-46,ry1+6,92,24).fill(K.red)
-  cont.addChild(g)
-  const t=new PIXI.Text({ text:'學府門', style:{ fontSize:14, fill:'#E8C050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
-  t.anchor.set(0.5,0.5); t.x=cx; t.y=ry1+18; cont.addChild(t)
-}
 
 function drawSign(cont: PIXI.Container, x: number, y: number, text: string) {
   const g=new PIXI.Graphics()
@@ -312,13 +174,10 @@ function drawSign(cont: PIXI.Container, x: number, y: number, text: string) {
 // Zone builders
 // ─────────────────────────────────────────────────────────────────
 
-function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
-  // Grass base
-  const grassBase = gt(0, 0, 560, 320); grassBase.x = 0; grassBase.y = 580; ground.addChild(grassBase)
-  // Stone courtyard
-  const court = gt(5, 1, 420, 200); court.x = 60; court.y = 660; ground.addChild(court)
-  // Dark grass strip at world bottom
-  const grassBot = gt(1, 0, 560, 80); grassBot.x = 0; grassBot.y = 820; ground.addChild(grassBot)
+function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, ctx: Ctx) {
+  const grassBase = ctx.gt(0, 0, 560, 320); grassBase.x = 0; grassBase.y = 580; ground.addChild(grassBase)
+  const court = ctx.gt(5, 1, 420, 200); court.x = 60; court.y = 660; ground.addChild(court)
+  const grassBot = ctx.gt(1, 0, 560, 80); grassBot.x = 0; grassBot.y = 820; ground.addChild(grassBot)
 
   const ow = new PIXI.Graphics()
   drawStoneWall(ow, 0, 640, 60, 50)
@@ -326,8 +185,22 @@ function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: P
   drawFence(ow, 470, 780, 70)
   objs.addChild(ow)
 
-  drawBuilding(objs, 110, GY, 290, 240, { sign:'武德堂', cols:4, style:'hall', wallColor:0xF2EAD8 })
-  drawBuilding(objs, 0, GY, 100, 170, { sign:'武館', cols:2, wallColor:K.wall })
+  // ── Buildings (sprite) ──────────────────────────────────────
+  const sideB = ctx.bsp(...BA.FAC_NARR)
+  sideB.anchor.set(0, 1); sideB.x = 0; sideB.y = GY; sideB.scale.set(1.05); objs.addChild(sideB)
+
+  const mainH = ctx.bsp(...BA.FAC_WIDE)
+  mainH.anchor.set(0, 1); mainH.x = 175; mainH.y = GY; mainH.scale.set(1.15); objs.addChild(mainH)
+
+  // Sign boards
+  const mkSign = (text: string, x: number, y: number) => {
+    const g = new PIXI.Graphics(); g.rect(x-28, y, 56, 20).fill(K.redD)
+    objs.addChild(g)
+    const t = new PIXI.Text({ text, style:{ fontSize:11, fill:'#F0D050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
+    t.anchor.set(0.5, 0.5); t.x = x; t.y = y + 10; objs.addChild(t)
+  }
+  mkSign('武館', 90, GY - 155)
+  mkSign('武德堂', 366, GY - 175)
 
   // Well
   const well=new PIXI.Graphics()
@@ -349,118 +222,124 @@ function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: P
   }
   objs.addChild(dum)
 
-  // Steps to main hall
   const steps=new PIXI.Graphics()
   steps.rect(215, GY-4, 155, 8).fill(K.stoneL)
   steps.rect(220, GY-10, 145, 8).fill(K.stone)
   steps.rect(225, GY-16, 135, 8).fill(K.stoneD)
   objs.addChild(steps)
 
-  // Flowers and petals
+  // Petal scatter on ground
   const fl=new PIXI.Graphics()
   for (let i=0;i<35;i++) {
     fl.ellipse(60+rng(i,50)*400, 680+rng(i,51)*120, 5+rng(i,52)*3, 3+rng(i,53)*2).fill({ color:K.cherryB, alpha:0.45 })
   }
-  for (let i=0;i<18;i++) {
-    const fx=70+rng(i+50,40)*380, fy=710+rng(i+50,41)*80
-    const fc=i%3===0?0xFFD0E8:i%3===1?0xF0F080:0xFFEECC
-    fl.circle(fx, fy, 4).fill(fc); fl.circle(fx, fy, 2).fill(0xFFFFFF)
-  }
   ground.addChild(fl)
 
-  // Trees
-  drawTree(fore, 55, GY, 'cherry', 1.0)
-  drawTree(objs, 40, GY-10, 'cherry', 0.72)
-  drawTree(fore, 488, GY, 'cherry', 0.9)
-  drawTree(fore, 514, GY-12, 'cherry', 0.68)
+  // ── Cherry trees (sprite) ───────────────────────────────────
+  const ch1 = ctx.nsp(...NA.CHERRY_2); ch1.anchor.set(0.5,1); ch1.x=55;  ch1.y=GY; ch1.scale.set(0.72); fore.addChild(ch1)
+  const ch2 = ctx.nsp(...NA.CHERRY_3); ch2.anchor.set(0.5,1); ch2.x=38;  ch2.y=GY; ch2.scale.set(0.52); objs.addChild(ch2)
+  const ch3 = ctx.nsp(...NA.CHERRY_1); ch3.anchor.set(0.5,1); ch3.x=490; ch3.y=GY; ch3.scale.set(0.68); fore.addChild(ch3)
+  const ch4 = ctx.nsp(...NA.CHERRY_3); ch4.anchor.set(0.5,1); ch4.x=522; ch4.y=GY; ch4.scale.set(0.50); fore.addChild(ch4)
 
   // Lanterns
   drawLantern(objs, 140, 700); drawLantern(objs, 290, 700); drawLantern(objs, 440, 700)
-  // Rope between lanterns
   const rope=new PIXI.Graphics()
   rope.moveTo(140, 706).quadraticCurveTo(215, 716, 290, 706).stroke({ color:K.woodD, width:1.5 })
   rope.moveTo(290, 706).quadraticCurveTo(365, 716, 440, 706).stroke({ color:K.woodD, width:1.5 })
   objs.addChild(rope)
 }
 
-function buildZone2Bamboo(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
-  const grassBase = gt(0, 0, 540, 320); grassBase.x = 540; grassBase.y = 580; ground.addChild(grassBase)
-  // Dirt clearings in bamboo
-  const d1 = gt(4, 0, 70, 200); d1.x = 590; d1.y = 680; ground.addChild(d1)
-  const d2 = gt(4, 0, 80, 220); d2.x = 780; d2.y = 660; ground.addChild(d2)
-  const d3 = gt(4, 0, 120, 210); d3.x = 950; d3.y = 670; ground.addChild(d3)
-  // Stream bed (stone) + water tiles
+function buildZone2Bamboo(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, ctx: Ctx) {
+  const grassBase = ctx.gt(0, 0, 540, 320); grassBase.x = 540; grassBase.y = 580; ground.addChild(grassBase)
+  const d1 = ctx.gt(4, 0, 70, 200); d1.x = 590; d1.y = 680; ground.addChild(d1)
+  const d2 = ctx.gt(4, 0, 80, 220); d2.x = 780; d2.y = 660; ground.addChild(d2)
+  const d3 = ctx.gt(4, 0, 120, 210); d3.x = 950; d3.y = 670; ground.addChild(d3)
   const bedG = new PIXI.Graphics(); bedG.rect(718, 600, 70, 300).fill(K.stoneD); ground.addChild(bedG)
-  const waterStr = gt(7, 2, 58, 296); waterStr.x = 724; waterStr.y = 604; ground.addChild(waterStr)
+  const waterStr = ctx.gt(7, 2, 58, 296); waterStr.x = 724; waterStr.y = 604; ground.addChild(waterStr)
 
-  // Dense bamboo clusters
-  for (let i=0;i<8;i++) drawBamboo(objs, 550+i*18, GY, 4, 160+rng(i,60)*60)
-  for (let i=0;i<6;i++) drawBamboo(objs, 640+i*22, GY-10, 5, 190+rng(i+10,60)*50)
-  for (let i=0;i<7;i++) drawBamboo(fore, 580+i*20, GY, 3, 210+rng(i+20,60)*40)
-  // Right side bamboo
-  for (let i=0;i<9;i++) drawBamboo(objs, 800+i*19, GY, 4, 170+rng(i+30,60)*55)
-  for (let i=0;i<8;i++) drawBamboo(fore, 830+i*18, GY, 3, 200+rng(i+40,60)*45)
-  for (let i=0;i<6;i++) drawBamboo(objs, 990+i*20, GY, 5, 160+rng(i+50,60)*60)
-  for (let i=0;i<5;i++) drawBamboo(fore, 1010+i*22, GY, 3, 190+rng(i+55,60)*50)
+  // Bamboo clusters — back layer (objs)
+  const bambBack: [number, number][] = [
+    [548,0.90],[566,1.00],[584,0.86],[602,1.05],[620,0.92],[638,1.00],[656,0.88],
+    [808,0.95],[828,1.10],[848,0.88],[868,1.00],[888,0.93],[908,1.05],
+    [928,0.87],[948,1.00],[968,0.90],[988,1.08],[1008,0.92],[1030,0.86],[1052,1.00],
+  ]
+  bambBack.forEach(([bx, sc], i) => {
+    const b = i % 4 === 0 ? ctx.nsp(...NA.BAMB_MID) : ctx.nsp(...NA.BAMB_SM)
+    b.anchor.set(0.5, 1); b.x = bx; b.y = GY; b.scale.set(sc); objs.addChild(b)
+  })
+  // Bamboo clusters — front layer (fore)
+  const bambFore: [number, number][] = [
+    [558,1.05],[578,0.96],[598,1.10],[618,0.90],[638,1.00],[658,0.88],
+    [820,1.00],[842,1.12],[864,0.92],[886,1.05],[910,0.90],[932,1.00],[956,0.88],[980,1.05],
+  ]
+  bambFore.forEach(([bx, sc]) => {
+    const b = ctx.nsp(...NA.BAMB_SM); b.anchor.set(0.5, 1); b.x = bx; b.y = GY; b.scale.set(sc); fore.addChild(b)
+  })
 
   // Bridge over stream
-  const br=new PIXI.Graphics()
-  drawBridge(br, 710, GY, 88)
-  objs.addChild(br)
+  const br = new PIXI.Graphics(); drawBridge(br, 710, GY, 88); objs.addChild(br)
 
-  // Rocks and moss
-  const rk=new PIXI.Graphics()
-  drawRock(rk, 660, GY-5, 0.9); drawRock(rk, 900, GY-8, 1.1)
-  drawRock(rk, 980, GY-4, 0.7); drawRock(rk, 1050, GY-6, 0.85)
-  objs.addChild(rk)
+  // Rock sprites
+  const rk1 = ctx.nsp(...NA.ROCK_MED); rk1.anchor.set(0.5,1); rk1.x=660;  rk1.y=GY; rk1.scale.set(0.55); objs.addChild(rk1)
+  const rk2 = ctx.nsp(...NA.ROCK_LG);  rk2.anchor.set(0.5,1); rk2.x=900;  rk2.y=GY; rk2.scale.set(0.62); objs.addChild(rk2)
+  const rk3 = ctx.nsp(...NA.ROCK_SM);  rk3.anchor.set(0.5,1); rk3.x=980;  rk3.y=GY; rk3.scale.set(0.50); objs.addChild(rk3)
+  const rk4 = ctx.nsp(...NA.ROCK_MED); rk4.anchor.set(0.5,1); rk4.x=1050; rk4.y=GY; rk4.scale.set(0.52); objs.addChild(rk4)
 
-  // Stone bench in clearing
-  const bench=new PIXI.Graphics()
+  // Stone bench
+  const bench = new PIXI.Graphics()
   bench.rect(840, GY-24, 60, 10).fill(K.stoneL)
   bench.rect(843, GY-14, 8, 14).fill(K.stone); bench.rect(889, GY-14, 8, 14).fill(K.stone)
   objs.addChild(bench)
 
-  // Sign
   drawSign(objs, 580, GY, '竹林徑')
   drawSign(objs, 760, GY, '清溪橋')
 }
 
-function buildZone3Village(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
-  const grassBase = gt(0, 0, 540, 320); grassBase.x = 1080; grassBase.y = 580; ground.addChild(grassBase)
-  // Village cobblestone street
-  const street = gt(9, 0, 460, 180); street.x = 1120; street.y = 680; ground.addChild(street)
-  // Fish pond (ellipse shape — keep as vector, overlay water tile)
+function buildZone3Village(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, ctx: Ctx) {
+  const grassBase = ctx.gt(0, 0, 540, 320); grassBase.x = 1080; grassBase.y = 580; ground.addChild(grassBase)
+  const street = ctx.gt(9, 0, 460, 180); street.x = 1120; street.y = 680; ground.addChild(street)
   const pondG = new PIXI.Graphics()
   pondG.ellipse(1560, GY+30, 55, 38).fill(K.stoneD)
   drawWater(pondG, 1508, GY-2, 104, 64)
   pondG.ellipse(1560, GY+32, 50, 34).fill(K.wM)
   ground.addChild(pondG)
 
-  // Tea house
-  drawBuilding(objs, 1090, GY, 170, 200, { sign:'茶館', cols:3, wallColor:0xF0E4C8 })
-  // Library
-  drawBuilding(objs, 1280, GY-50, 140, 190, { sign:'書院', cols:3, wallColor:K.wall })
-  // Market stalls
-  const stalls=new PIXI.Graphics()
+  // Building sign helper
+  const mkS = (text: string, x: number, y: number) => {
+    const g = new PIXI.Graphics(); g.rect(x-32, y, 64, 22).fill(K.redD); objs.addChild(g)
+    const t = new PIXI.Text({ text, style:{ fontSize:12, fill:'#F0D050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
+    t.anchor.set(0.5, 0.5); t.x = x; t.y = y + 11; objs.addChild(t)
+  }
+
+  // Tea house (sprite)
+  const teaH = ctx.bsp(...BA.FAC_B2)
+  teaH.anchor.set(0, 1); teaH.x = 1090; teaH.y = GY; teaH.scale.set(1.28); objs.addChild(teaH)
+  mkS('茶館', 1185, GY - 148)
+
+  // Library — elevated on platform (sprite)
+  const lib = ctx.bsp(...BA.FAC_B1)
+  lib.anchor.set(0, 1); lib.x = 1285; lib.y = GY - 50; lib.scale.set(1.18); objs.addChild(lib)
+  mkS('書院', 1375, GY - 192)
+
+  // Market stalls (vector)
+  const stalls = new PIXI.Graphics()
   for (let i=0;i<3;i++) {
     const sx=1440+i*65
     stalls.rect(sx, GY-60, 55, 60).fill(K.wood)
     stalls.rect(sx-4, GY-72, 63, 15).fill(i%2===0?K.red:K.colRD)
     stalls.rect(sx+6, GY-58, 42, 50).fill(K.wallS)
-    // Goods on counter
     for (let j=0;j<4;j++) {
       const c=j%4===0?0xE03030:j%4===1?0xF0C040:j%4===2?0x40A040:0x8060E0
       stalls.circle(sx+10+j*10, GY-30, 5).fill(c)
     }
   }
   objs.addChild(stalls)
-  // Stall signs
   drawSign(objs, 1457, GY, '藥材')
   drawSign(objs, 1522, GY, '茶葉')
   drawSign(objs, 1587, GY, '布匹')
 
-  // Houses background
-  const houses=new PIXI.Graphics()
+  // Houses background (vector)
+  const houses = new PIXI.Graphics()
   for (let i=0;i<4;i++) {
     const hx=1110+i*105, hw=88, hh=110
     houses.rect(hx, GY-200-hh, hw, hh).fill(K.wallS)
@@ -470,53 +349,44 @@ function buildZone3Village(ground: PIXI.Container, objs: PIXI.Container, fore: P
   }
   ground.addChild(houses)
 
-  // Pond details
-  const pond=new PIXI.Graphics()
+  // Pond details (vector)
+  const pond = new PIXI.Graphics()
   for (let i=0;i<5;i++) {
     const lx=1515+rng(i,70)*90, ly=GY+5+rng(i,71)*40
     pond.ellipse(lx, ly, 12+rng(i,72)*8, 5+rng(i,73)*3).fill({ color:0x60C040, alpha:0.65 })
   }
-  for (let i=0;i<3;i++) {
-    pond.circle(1525+i*25, GY+25, 3).fill({ color:0xFF8030, alpha:0.8 })
-  }
+  for (let i=0;i<3;i++) pond.circle(1525+i*25, GY+25, 3).fill({ color:0xFF8030, alpha:0.8 })
   ground.addChild(pond)
 
-  // Trees
-  drawTree(fore, 1086, GY, 'oak', 0.8)
-  drawTree(fore, 1610, GY, 'cherry', 0.9)
-  drawTree(objs, 1070, GY-12, 'cherry', 0.6)
+  // Trees (sprites)
+  const oak1 = ctx.nsp(...NA.BONSAI_2); oak1.anchor.set(0.5,1); oak1.x=1086; oak1.y=GY;    oak1.scale.set(0.75); fore.addChild(oak1)
+  const ch1  = ctx.nsp(...NA.CHERRY_2); ch1.anchor.set(0.5,1);  ch1.x=1610;  ch1.y=GY;    ch1.scale.set(0.80);  fore.addChild(ch1)
+  const ch2  = ctx.nsp(...NA.CHERRY_3); ch2.anchor.set(0.5,1);  ch2.x=1070;  ch2.y=GY;    ch2.scale.set(0.58);  objs.addChild(ch2)
 
   // Lanterns along street
   drawLantern(objs, 1170, 700); drawLantern(objs, 1320, 700)
   drawLantern(objs, 1470, 700); drawLantern(objs, 1600, 700)
 
   // Stone steps to library
-  const libSteps=new PIXI.Graphics()
+  const libSteps = new PIXI.Graphics()
   libSteps.rect(1330, GY-54, 80, 8).fill(K.stoneL)
   libSteps.rect(1335, GY-60, 70, 8).fill(K.stone)
   objs.addChild(libSteps)
 }
 
-function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
-  // Base grass layer
-  const grassBase = gt(0, 0, 540, 420); grassBase.x = 1620; grassBase.y = 480; ground.addChild(grassBase)
-  // Rising terrain polygon overlay (dark grass on elevated areas)
+function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, ctx: Ctx) {
+  const grassBase = ctx.gt(0, 0, 540, 420); grassBase.x = 1620; grassBase.y = 480; ground.addChild(grassBase)
   const terr = new PIXI.Graphics()
   terr.poly([1620,900, 1620,GY, 1680,GY-20, 1780,GY-60, 1900,GY-130, 2000,GY-160, 2100,GY-150, 2160,GY-80, 2160,900]).fill(K.grassD)
   ground.addChild(terr)
-  // Cliff/rock edge strip
   const cliffG = new PIXI.Graphics()
   drawStoneWall(cliffG, 1620, GY-100, 540, 16)
   ground.addChild(cliffG)
-  // Dirt trails winding up
   const dirtPath = new PIXI.Graphics()
-  drawDirt(dirtPath, 1640, GY-15, 80, 120)
-  drawDirt(dirtPath, 1720, GY-55, 80, 80)
-  drawDirt(dirtPath, 1800, GY-105, 80, 70)
-  drawDirt(dirtPath, 1880, GY-140, 120, 60)
+  drawDirt(dirtPath, 1640, GY-15, 80, 120); drawDirt(dirtPath, 1720, GY-55, 80, 80)
+  drawDirt(dirtPath, 1800, GY-105, 80, 70); drawDirt(dirtPath, 1880, GY-140, 120, 60)
   drawDirt(dirtPath, 2000, GY-160, 160, 50)
   ground.addChild(dirtPath)
-  // Rocky stone patches at cliff tops
   const rockyG = new PIXI.Graphics()
   rockyG.rect(1620, GY-120, 540, 20).fill(K.stone)
   rockyG.rect(1800, GY-150, 240, 25).fill(K.stoneD)
@@ -524,7 +394,7 @@ function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: 
   ground.addChild(rockyG)
 
   // Stone steps
-  const sts=new PIXI.Graphics()
+  const sts = new PIXI.Graphics()
   for (let i=0;i<12;i++) {
     const sx=1660+i*28, sy=GY-12-i*12
     sts.rect(sx, sy, 36, 10).fill(i%2===0?K.stoneL:K.stone)
@@ -532,36 +402,34 @@ function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: 
   }
   objs.addChild(sts)
 
-  // Waterfall
-  const wf=new PIXI.Graphics()
-  // Pool at bottom
+  // Waterfall — pool, channel, foam (vector)
+  const wf = new PIXI.Graphics()
   wf.ellipse(1940, GY-115, 50, 28).fill(K.wD)
   wf.ellipse(1940, GY-117, 44, 24).fill(K.wM)
-  // Fall channel
   wf.rect(1930, GY-280, 22, 168).fill({ color:K.wL, alpha:0.7 })
-  // Foam at top and bottom
-  for (let i=0;i<8;i++) wf.ellipse(1924+i*4, GY-280, 5, 4).fill({ color:K.wF, alpha:0.6 })
+  for (let i=0;i<8;i++)  wf.ellipse(1924+i*4, GY-280, 5, 4).fill({ color:K.wF, alpha:0.60 })
   for (let i=0;i<10;i++) wf.ellipse(1916+i*5, GY-118, 7, 4).fill({ color:K.wF, alpha:0.55 })
-  // Rocky sides
-  drawRock(wf, 1905, GY-125, 1.1); drawRock(wf, 1968, GY-120, 0.9)
   objs.addChild(wf)
 
-  // Pine trees along mountain
-  drawTree(fore, 1640, GY, 'pine', 1.1)
-  drawTree(objs, 1700, GY-50, 'pine', 0.9)
-  drawTree(fore, 1820, GY-100, 'pine', 1.0)
-  drawTree(objs, 2050, GY-160, 'pine', 1.2)
-  drawTree(fore, 2120, GY-140, 'pine', 0.85)
+  // Pine/bonsai tree sprites
+  const tr1 = ctx.nsp(...NA.BONSAI_1); tr1.anchor.set(0.5,1); tr1.x=1640; tr1.y=GY;     tr1.scale.set(1.00); fore.addChild(tr1)
+  const tr2 = ctx.nsp(...NA.BONSAI_3); tr2.anchor.set(0.5,1); tr2.x=1700; tr2.y=GY-50;  tr2.scale.set(0.85); objs.addChild(tr2)
+  const tr3 = ctx.nsp(...NA.BONSAI_2); tr3.anchor.set(0.5,1); tr3.x=1820; tr3.y=GY-100; tr3.scale.set(0.92); fore.addChild(tr3)
+  const tr4 = ctx.nsp(...NA.BONSAI_4); tr4.anchor.set(0.5,1); tr4.x=2050; tr4.y=GY-160; tr4.scale.set(1.10); objs.addChild(tr4)
+  const tr5 = ctx.nsp(...NA.BONSAI_1); tr5.anchor.set(0.5,1); tr5.x=2120; tr5.y=GY-140; tr5.scale.set(0.82); fore.addChild(tr5)
 
-  // Rocky outcrops
-  const rk=new PIXI.Graphics()
-  drawRock(rk, 1670, GY-8, 1.3); drawRock(rk, 1750, GY-65, 1.0)
-  drawRock(rk, 1860, GY-138, 1.4); drawRock(rk, 2080, GY-175, 1.1)
-  drawRock(rk, 2140, GY-92, 0.8)
-  objs.addChild(rk)
+  // Rocky outcrop sprites
+  const rk1 = ctx.nsp(...NA.ROCK_LG);  rk1.anchor.set(0.5,1); rk1.x=1670; rk1.y=GY;     rk1.scale.set(0.80); objs.addChild(rk1)
+  const rk2 = ctx.nsp(...NA.ROCK_MED); rk2.anchor.set(0.5,1); rk2.x=1750; rk2.y=GY-65;  rk2.scale.set(0.62); objs.addChild(rk2)
+  const rk3 = ctx.nsp(...NA.ROCK_LG);  rk3.anchor.set(0.5,1); rk3.x=1860; rk3.y=GY-138; rk3.scale.set(0.85); objs.addChild(rk3)
+  const rk4 = ctx.nsp(...NA.ROCK_MED); rk4.anchor.set(0.5,1); rk4.x=2080; rk4.y=GY-175; rk4.scale.set(0.65); objs.addChild(rk4)
+  const rk5 = ctx.nsp(...NA.ROCK_SM);  rk5.anchor.set(0.5,1); rk5.x=2140; rk5.y=GY-92;  rk5.scale.set(0.50); objs.addChild(rk5)
+  // Waterfall flanking rocks
+  const rw1 = ctx.nsp(...NA.ROCK_MED); rw1.anchor.set(0.5,1); rw1.x=1905; rw1.y=GY-125; rw1.scale.set(0.68); objs.addChild(rw1)
+  const rw2 = ctx.nsp(...NA.ROCK_SM);  rw2.anchor.set(0.5,1); rw2.x=1968; rw2.y=GY-120; rw2.scale.set(0.54); objs.addChild(rw2)
 
   // Cave entrance
-  const cave=new PIXI.Graphics()
+  const cave = new PIXI.Graphics()
   cave.ellipse(2130, GY-135, 32, 24).fill({ color:0x0A0808, alpha:0.9 })
   cave.ellipse(2128, GY-134, 28, 20).fill({ color:0x050505 })
   drawStoneWall(cave, 2100, GY-160, 70, 30)
@@ -569,24 +437,36 @@ function buildZone4Mountain(ground: PIXI.Container, objs: PIXI.Container, fore: 
   drawSign(objs, 2130, GY-160, '隱谷')
 }
 
-function buildZone5Temple(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, gt: GroundTiler) {
-  const grassBase = gt(0, 0, 540, 320); grassBase.x = 2160; grassBase.y = 580; ground.addChild(grassBase)
-  // Ornate stone courtyard for temple
-  const court = gt(3, 1, 460, 220); court.x = 2200; court.y = 650; ground.addChild(court)
-  // Dark grass at base
-  const grassBot = gt(1, 0, 540, 80); grassBot.x = 2160; grassBot.y = 820; ground.addChild(grassBot)
+function buildZone5Temple(ground: PIXI.Container, objs: PIXI.Container, fore: PIXI.Container, ctx: Ctx) {
+  const grassBase = ctx.gt(0, 0, 540, 320); grassBase.x = 2160; grassBase.y = 580; ground.addChild(grassBase)
+  const court = ctx.gt(3, 1, 460, 220); court.x = 2200; court.y = 650; ground.addChild(court)
+  const grassBot = ctx.gt(1, 0, 540, 80); grassBot.x = 2160; grassBot.y = 820; ground.addChild(grassBot)
 
-  // Grand paifang gate
-  drawPaifang(objs, 2280, GY, 170)
+  // Grand paifang gate (sprite) — add first so buildings render on top
+  const gate = ctx.bsp(...BA.GATE_SM)
+  gate.anchor.set(0.5, 1); gate.x = 2280; gate.y = GY; gate.scale.set(1.05); objs.addChild(gate)
+  const gateT = new PIXI.Text({ text:'學府門', style:{ fontSize:14, fill:'#E8C050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
+  gateT.anchor.set(0.5, 0.5); gateT.x = 2280; gateT.y = GY - 212; objs.addChild(gateT)
 
-  // Main temple (large)
-  drawBuilding(objs, 2340, GY, 300, 260, { sign:'古刹', cols:5, style:'temple', wallColor:0xF5EDE0 })
+  // Bell tower — narrow facade (sprite)
+  const bell = ctx.bsp(...BA.FAC_NARR)
+  bell.anchor.set(0, 1); bell.x = 2210; bell.y = GY - 30; bell.scale.set(0.88); objs.addChild(bell)
 
-  // Bell tower (side)
-  drawBuilding(objs, 2210, GY-30, 80, 200, { sign:'鐘樓', cols:2, wallColor:K.wall })
+  // Main temple — wide facade (sprite)
+  const temple = ctx.bsp(...BA.FAC_WIDE)
+  temple.anchor.set(0, 1); temple.x = 2345; temple.y = GY; temple.scale.set(1.12); objs.addChild(temple)
 
-  // Stone statues
-  const stat=new PIXI.Graphics()
+  // Building sign helper
+  const mkS = (text: string, x: number, y: number) => {
+    const g = new PIXI.Graphics(); g.rect(x-36, y, 72, 24).fill(K.redD); objs.addChild(g)
+    const t = new PIXI.Text({ text, style:{ fontSize:13, fill:'#F0D050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
+    t.anchor.set(0.5, 0.5); t.x = x; t.y = y + 12; objs.addChild(t)
+  }
+  mkS('鐘樓', 2286, GY - 138)
+  mkS('古刹',  2510, GY - 145)
+
+  // Stone statues (vector)
+  const stat = new PIXI.Graphics()
   for (const sx of [2236, 2640]) {
     stat.ellipse(sx, GY+8, 16, 10).fill({ color:0x000000, alpha:0.1 })
     stat.rect(sx-8, GY-70, 16, 70).fill(K.stoneD)
@@ -597,47 +477,44 @@ function buildZone5Temple(ground: PIXI.Container, objs: PIXI.Container, fore: PI
   }
   objs.addChild(stat)
 
-  // Stone tablets with inscriptions
-  const tab=new PIXI.Graphics()
+  // Stone tablets (vector)
+  const tab = new PIXI.Graphics()
   for (let i=0;i<3;i++) {
     const tx2=2310+i*80
     tab.rect(tx2-10, GY-90, 20, 90).fill(K.stoneD)
-    tab.rect(tx2-8, GY-88, 16, 86).fill(K.stone)
+    tab.rect(tx2-8,  GY-88, 16, 86).fill(K.stone)
   }
   objs.addChild(tab)
-  const t1=new PIXI.Text({ text:'道', style:{ fontSize:18, fill:'#3A2010', fontFamily:'"Noto Serif SC",serif' } })
+  const t1 = new PIXI.Text({ text:'道', style:{ fontSize:18, fill:'#3A2010', fontFamily:'"Noto Serif SC",serif' } })
   t1.anchor.set(0.5,0.5); t1.x=2310; t1.y=GY-48; objs.addChild(t1)
-  const t2=new PIXI.Text({ text:'德', style:{ fontSize:18, fill:'#3A2010', fontFamily:'"Noto Serif SC",serif' } })
+  const t2 = new PIXI.Text({ text:'德', style:{ fontSize:18, fill:'#3A2010', fontFamily:'"Noto Serif SC",serif' } })
   t2.anchor.set(0.5,0.5); t2.x=2390; t2.y=GY-48; objs.addChild(t2)
-  const t3=new PIXI.Text({ text:'仁', style:{ fontSize:18, fill:'#3A2010', fontFamily:'"Noto Serif SC",serif' } })
+  const t3 = new PIXI.Text({ text:'仁', style:{ fontSize:18, fill:'#3A2010', fontFamily:'"Noto Serif SC",serif' } })
   t3.anchor.set(0.5,0.5); t3.x=2470; t3.y=GY-48; objs.addChild(t3)
 
-  // Ancient gnarled trees
-  drawTree(fore, 2192, GY, 'oak', 1.2)
-  drawTree(fore, 2660, GY, 'oak', 1.1)
-  drawTree(objs, 2175, GY-10, 'plum', 0.75)
+  // Ancient trees (sprites)
+  const oak1 = ctx.nsp(...NA.BONSAI_2); oak1.anchor.set(0.5,1); oak1.x=2192; oak1.y=GY; oak1.scale.set(1.10); fore.addChild(oak1)
+  const oak2 = ctx.nsp(...NA.BONSAI_4); oak2.anchor.set(0.5,1); oak2.x=2660; oak2.y=GY; oak2.scale.set(1.00); fore.addChild(oak2)
+  const plum = ctx.nsp(...NA.CHERRY_1); plum.anchor.set(0.5,1); plum.x=2175; plum.y=GY; plum.scale.set(0.62); objs.addChild(plum)
 
-  // Temple steps
-  const ts=new PIXI.Graphics()
-  ts.rect(2380, GY-4, 160, 8).fill(K.stoneL)
-  ts.rect(2385, GY-10, 150, 8).fill(K.stone)
-  ts.rect(2390, GY-16, 140, 8).fill(K.stoneD)
-  ts.rect(2395, GY-22, 130, 8).fill(K.stoneL)
+  // Temple steps (vector)
+  const ts = new PIXI.Graphics()
+  ts.rect(2385, GY-4,  150, 8).fill(K.stoneL)
+  ts.rect(2390, GY-10, 140, 8).fill(K.stone)
+  ts.rect(2395, GY-16, 130, 8).fill(K.stoneD)
+  ts.rect(2400, GY-22, 120, 8).fill(K.stoneL)
   objs.addChild(ts)
 
   // Stone wall perimeter
-  const tw=new PIXI.Graphics()
-  drawStoneWall(tw, 2160, 640, 540, 42)
-  objs.addChild(tw)
+  const tw = new PIXI.Graphics(); drawStoneWall(tw, 2160, 640, 540, 42); objs.addChild(tw)
 
   // Incense burner
-  const inc=new PIXI.Graphics()
+  const inc = new PIXI.Graphics()
   inc.rect(2479, GY-55, 22, 55).fill(K.stoneD)
   inc.rect(2468, GY-65, 44, 14).fill(K.stone)
-  inc.rect(2465, GY-58, 50, 6).fill(K.stoneL)
+  inc.rect(2465, GY-58, 50,  6).fill(K.stoneL)
   objs.addChild(inc)
 
-  // Lanterns
   for (let i=0;i<5;i++) drawLantern(objs, 2230+i*100, GY-90)
 }
 
@@ -755,6 +632,42 @@ export function GameScene() {
         return new PIXI.TilingSprite({ texture: tex, width: w, height: h })
       }
 
+      // ── Building Atlas: facade/gate sprites ───────────────────
+      const buildingAtlasTex = await new Promise<PIXI.Texture>((resolve) => {
+        const img = new Image()
+        img.onload = () => {
+          const cv = document.createElement('canvas')
+          cv.width = img.width; cv.height = img.height
+          const ctx2d = cv.getContext('2d')!
+          ctx2d.drawImage(img, 0, 0)
+          resolve(PIXI.Texture.from(cv))
+        }
+        img.src = '/assets/building-atlas.png'
+      })
+      const bsp = (x: number, y: number, w: number, h: number): PIXI.Sprite => {
+        const tex = new PIXI.Texture({ source: buildingAtlasTex.source, frame: new PIXI.Rectangle(x, y, w, h) })
+        return new PIXI.Sprite(tex)
+      }
+
+      // ── Nature Atlas: bamboo/cherry/bonsai/rock sprites ───────
+      const natureAtlasTex = await new Promise<PIXI.Texture>((resolve) => {
+        const img = new Image()
+        img.onload = () => {
+          const cv = document.createElement('canvas')
+          cv.width = img.width; cv.height = img.height
+          const ctx2d = cv.getContext('2d')!
+          ctx2d.drawImage(img, 0, 0)
+          resolve(PIXI.Texture.from(cv))
+        }
+        img.src = '/assets/nature-atlas.png'
+      })
+      const nsp = (x: number, y: number, w: number, h: number): PIXI.Sprite => {
+        const tex = new PIXI.Texture({ source: natureAtlasTex.source, frame: new PIXI.Rectangle(x, y, w, h) })
+        return new PIXI.Sprite(tex)
+      }
+
+      const gameCtx: Ctx = { gt, bsp, nsp }
+
       // ── World container ────────────────────────────────────────
       const world = new PIXI.Container()
       app.stage.addChild(world)
@@ -771,11 +684,11 @@ export function GameScene() {
 
       // ── Build world ────────────────────────────────────────────
       buildBackground(bgLayer)
-      buildZone1Academy(groundLay, objLay, foreLayer, gt)
-      buildZone2Bamboo(groundLay, objLay, foreLayer, gt)
-      buildZone3Village(groundLay, objLay, foreLayer, gt)
-      buildZone4Mountain(groundLay, objLay, foreLayer, gt)
-      buildZone5Temple(groundLay, objLay, foreLayer, gt)
+      buildZone1Academy(groundLay, objLay, foreLayer, gameCtx)
+      buildZone2Bamboo(groundLay, objLay, foreLayer, gameCtx)
+      buildZone3Village(groundLay, objLay, foreLayer, gameCtx)
+      buildZone4Mountain(groundLay, objLay, foreLayer, gameCtx)
+      buildZone5Temple(groundLay, objLay, foreLayer, gameCtx)
 
       // Zone transition signs
       drawSign(objLay, 540, GY, '竹林')
