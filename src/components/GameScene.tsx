@@ -590,7 +590,8 @@ export function GameScene() {
         })
 
       const [groundAtlasTex, buildingAtlasTex, natureAtlasTex, propsAtlasTex,
-             playerWalkTex, sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex] =
+             playerWalkTex, sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex,
+             jadeWalkTex, redWalkTex, dragonTex] =
         await Promise.all([
           loadTex('/assets/ground-atlas.png'),
           loadTex('/assets/building-atlas.png'),
@@ -602,6 +603,9 @@ export function GameScene() {
           loadTex('/assets/hua_lan_walk.png'),
           loadTex('/assets/wen_bo_walk.png'),
           loadTex('/assets/little_wu_walk.png'),
+          loadTex('/assets/player_apprentice_jade_walk.png'),
+          loadTex('/assets/player_apprentice_red_walk.png'),
+          loadTex('/assets/xiao_long_paper_dragon_float.png'),
         ])
 
       const GTILE = 128
@@ -676,10 +680,14 @@ export function GameScene() {
         spr: PIXI.AnimatedSprite; leftFrames: PIXI.Texture[]; rightFrames: PIXI.Texture[]
       }
       const walkers: WalkNPC[] = []
-      const npcWalkTexes = [grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex]
+      const npcWalkTexes = [grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex, jadeWalkTex, redWalkTex]
       const npcZones = [
-        { x:1180, min:1140, max:1280 }, { x:1350, min:1280, max:1470 },
-        { x:1420, min:1340, max:1560 }, { x:1500, min:1380, max:1580 },
+        { x:230,  min:130,  max:420  },  // Zone 1 Academy courtyard
+        { x:1180, min:1140, max:1280 },  // Zone 3 Village
+        { x:1350, min:1280, max:1470 },
+        { x:1420, min:1340, max:1560 },
+        { x:1500, min:1380, max:1580 },
+        { x:2380, min:2290, max:2530 },  // Zone 5 Temple courtyard
       ]
       npcZones.forEach((z, i) => {
         const wc = new PIXI.Container()
@@ -737,6 +745,19 @@ export function GameScene() {
         ysortLay.addChild(orb)
         orbContainers.push(orb)
       }
+
+      // ── Dragon ambient creature (partLay) ────────────────────
+      // xiao_long_paper_dragon_float.png: 128×32, 4 frames of 32×32
+      const dragonFrames = [0,1,2,3].map(col =>
+        new PIXI.Texture({ source: dragonTex.source, frame: new PIXI.Rectangle(col * 32, 0, 32, 32) })
+      )
+      const dragonSpr = new PIXI.AnimatedSprite(dragonFrames)
+      dragonSpr.anchor.set(0.5, 0.5)
+      dragonSpr.scale.set(3.8)
+      dragonSpr.animationSpeed = 0.09
+      dragonSpr.play()
+      dragonSpr.x = 700; dragonSpr.y = 235
+      partLay.addChild(dragonSpr)
 
       // ── Player (ysort) ────────────────────────────────────────
       const playerShadow = new PIXI.Graphics()
@@ -820,6 +841,7 @@ export function GameScene() {
 
       // ── Camera ────────────────────────────────────────────────
       let camX = 0, camY = 0
+      let dragonWX = 700
       const targetCam = { x:0, y:0 }
 
       // ── Main ticker ────────────────────────────────────────────
@@ -903,6 +925,12 @@ export function GameScene() {
           s.g.alpha = Math.max(0, 0.28 - (s.life/s.max) * 0.28)
           s.g.scale.set(0.4 + (s.life/s.max) * 0.9)
         })
+
+        // Dragon ambient flight — slowly crosses the world, loops
+        dragonWX += 0.55 * tk.deltaTime
+        if (dragonWX > WW + 160) dragonWX = -160
+        dragonSpr.x = dragonWX
+        dragonSpr.y = 232 + Math.sin(t * 0.016) * 16
 
         // Birds
         birds.forEach((b) => {
