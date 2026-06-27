@@ -36,12 +36,16 @@ const K = {
   red: 0xAA0000, redB: 0xCC2020, redD: 0x880000,
 }
 
+const FW = 32, FH = 32  // walk-sprite frame size (32×32 per frame, 4×4 grid)
+
 // Ground atlas: 128×128 tiles, 12×8 grid
 // Nature atlas: transparent PNG — bamboo, cherry, bonsai, rocks (1536×1024)
 // Building atlas: transparent PNG — facades, gate, railings (1536×1024)
+// Props atlas: transparent PNG — props & decoration (1024×1024)
+// Walk sprites: 128×128 PNG, 4×4 grid of 32×32 frames
 type GroundTiler  = (col: number, row: number, w: number, h: number) => PIXI.TilingSprite
 type AtlasSpriter = (x: number, y: number, w: number, h: number) => PIXI.Sprite
-interface Ctx { gt: GroundTiler; bsp: AtlasSpriter; nsp: AtlasSpriter }
+interface Ctx { gt: GroundTiler; bsp: AtlasSpriter; nsp: AtlasSpriter; psp: AtlasSpriter }
 
 // ── Nature-atlas sprite rects ─────────────────────────────────────
 const NA = {
@@ -75,6 +79,17 @@ const BA = {
   GATE_SM:      [1293,740, 234, 230] as const, // smaller gate
   RAILING_LG:   [41,  658, 303,  57] as const, // long stone railing
   RAILING_RED:  [358, 658, 101,  57] as const, // red lacquer railing
+} as const
+
+// ── Props-atlas sprite rects ──────────────────────────────────────
+const PA = {
+  STONE_LAN: [29,   24,  58, 126] as const, // stone pagoda lantern
+  WELL:      [406,  24, 103, 126] as const, // stone well + wooden frame
+  DUMMY_1:   [37,  155,  58, 125] as const, // training dummy A
+  DUMMY_2:   [107, 155,  59, 125] as const, // training dummy B
+  DUMMY_3:   [187, 155,  73, 125] as const, // training dummy C
+  BARREL:    [23,  415,  63, 115] as const, // wooden barrel
+  INCENSE:   [855, 840, 140, 143] as const, // large stone incense burner
 } as const
 
 function rng(a: number, b: number) {
@@ -202,25 +217,13 @@ function buildZone1Academy(ground: PIXI.Container, objs: PIXI.Container, fore: P
   mkSign('武館', 90, GY - 155)
   mkSign('武德堂', 366, GY - 175)
 
-  // Well
-  const well=new PIXI.Graphics()
-  well.ellipse(62, GY+10, 20, 13).fill({ color:0x000000, alpha:0.1 })
-  well.ellipse(55, GY-8, 20, 13).fill(K.stoneD)
-  well.ellipse(55, GY-10, 16, 10).fill(K.wD)
-  well.rect(47, GY-35, 4, 28).fill(K.woodD); well.rect(59, GY-35, 4, 28).fill(K.woodD)
-  well.rect(45, GY-37, 26, 5).fill(K.woodD)
-  objs.addChild(well)
+  // Well (sprite)
+  const well = ctx.psp(...PA.WELL); well.anchor.set(0.5,1); well.x=55; well.y=GY; well.scale.set(0.55); objs.addChild(well)
 
-  // Training dummies
-  const dum=new PIXI.Graphics()
-  for (let i=0;i<3;i++) {
-    const dx=195+i*80
-    dum.rect(dx-4, GY-52, 8, 52).fill(K.woodD)
-    dum.ellipse(dx, GY-55, 14, 14).fill(K.stone)
-    dum.rect(dx-20, GY-46, 8, 28).fill(K.woodD)
-    dum.rect(dx+12, GY-46, 8, 28).fill(K.woodD)
-  }
-  objs.addChild(dum)
+  // Training dummies (sprites)
+  const dummy1 = ctx.psp(...PA.DUMMY_1); dummy1.anchor.set(0.5,1); dummy1.x=195; dummy1.y=GY; dummy1.scale.set(0.62); objs.addChild(dummy1)
+  const dummy2 = ctx.psp(...PA.DUMMY_2); dummy2.anchor.set(0.5,1); dummy2.x=275; dummy2.y=GY; dummy2.scale.set(0.62); objs.addChild(dummy2)
+  const dummy3 = ctx.psp(...PA.DUMMY_3); dummy3.anchor.set(0.5,1); dummy3.x=355; dummy3.y=GY; dummy3.scale.set(0.62); objs.addChild(dummy3)
 
   const steps=new PIXI.Graphics()
   steps.rect(215, GY-4, 155, 8).fill(K.stoneL)
@@ -508,12 +511,8 @@ function buildZone5Temple(ground: PIXI.Container, objs: PIXI.Container, fore: PI
   // Stone wall perimeter
   const tw = new PIXI.Graphics(); drawStoneWall(tw, 2160, 640, 540, 42); objs.addChild(tw)
 
-  // Incense burner
-  const inc = new PIXI.Graphics()
-  inc.rect(2479, GY-55, 22, 55).fill(K.stoneD)
-  inc.rect(2468, GY-65, 44, 14).fill(K.stone)
-  inc.rect(2465, GY-58, 50,  6).fill(K.stoneL)
-  objs.addChild(inc)
+  // Incense burner (sprite)
+  const inc = ctx.psp(...PA.INCENSE); inc.anchor.set(0.5,1); inc.x=2490; inc.y=GY; inc.scale.set(0.50); objs.addChild(inc)
 
   for (let i=0;i<5;i++) drawLantern(objs, 2230+i*100, GY-90)
 }
@@ -610,20 +609,36 @@ export function GameScene() {
         return new PIXI.Sprite(tex)
       }
 
-      // ── Ground Atlas: terrain TilingSprites ────────────────────
-      const groundAtlasTex = await new Promise<PIXI.Texture>((resolve) => {
-        const img = new Image()
-        img.onload = () => {
-          const cv = document.createElement('canvas')
-          cv.width = img.width; cv.height = img.height
-          const ctx2d = cv.getContext('2d')!
-          ctx2d.drawImage(img, 0, 0)
-          resolve(PIXI.Texture.from(cv))
-        }
-        img.src = '/assets/ground-atlas.png'
-      })
+      // ── Atlas loader helper (transparent PNGs) ─────────────────
+      const loadTex = (src: string): Promise<PIXI.Texture> =>
+        new Promise<PIXI.Texture>(resolve => {
+          const img = new Image()
+          img.onload = () => {
+            const cv = document.createElement('canvas')
+            cv.width = img.width; cv.height = img.height
+            cv.getContext('2d')!.drawImage(img, 0, 0)
+            resolve(PIXI.Texture.from(cv))
+          }
+          img.src = src
+        })
+
+      // Load all atlases + walk sprites in parallel
+      const [groundAtlasTex, buildingAtlasTex, natureAtlasTex, propsAtlasTex,
+             playerWalkTex, sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex] =
+        await Promise.all([
+          loadTex('/assets/ground-atlas.png'),
+          loadTex('/assets/building-atlas.png'),
+          loadTex('/assets/nature-atlas.png'),
+          loadTex('/assets/props-atlas.png'),
+          loadTex('/assets/player_apprentice_blue_walk.png'),
+          loadTex('/assets/sifu_liang_walk.png'),
+          loadTex('/assets/grandma_zhang_walk.png'),
+          loadTex('/assets/hua_lan_walk.png'),
+          loadTex('/assets/wen_bo_walk.png'),
+          loadTex('/assets/little_wu_walk.png'),
+        ])
+
       const GTILE = 128
-      // Returns a TilingSprite from the ground atlas 12×8 grid
       const gt = (col: number, row: number, w: number, h: number): PIXI.TilingSprite => {
         const tex = new PIXI.Texture({
           source: groundAtlasTex.source,
@@ -631,42 +646,23 @@ export function GameScene() {
         })
         return new PIXI.TilingSprite({ texture: tex, width: w, height: h })
       }
-
-      // ── Building Atlas: facade/gate sprites ───────────────────
-      const buildingAtlasTex = await new Promise<PIXI.Texture>((resolve) => {
-        const img = new Image()
-        img.onload = () => {
-          const cv = document.createElement('canvas')
-          cv.width = img.width; cv.height = img.height
-          const ctx2d = cv.getContext('2d')!
-          ctx2d.drawImage(img, 0, 0)
-          resolve(PIXI.Texture.from(cv))
-        }
-        img.src = '/assets/building-atlas.png'
-      })
       const bsp = (x: number, y: number, w: number, h: number): PIXI.Sprite => {
         const tex = new PIXI.Texture({ source: buildingAtlasTex.source, frame: new PIXI.Rectangle(x, y, w, h) })
         return new PIXI.Sprite(tex)
       }
-
-      // ── Nature Atlas: bamboo/cherry/bonsai/rock sprites ───────
-      const natureAtlasTex = await new Promise<PIXI.Texture>((resolve) => {
-        const img = new Image()
-        img.onload = () => {
-          const cv = document.createElement('canvas')
-          cv.width = img.width; cv.height = img.height
-          const ctx2d = cv.getContext('2d')!
-          ctx2d.drawImage(img, 0, 0)
-          resolve(PIXI.Texture.from(cv))
-        }
-        img.src = '/assets/nature-atlas.png'
-      })
       const nsp = (x: number, y: number, w: number, h: number): PIXI.Sprite => {
         const tex = new PIXI.Texture({ source: natureAtlasTex.source, frame: new PIXI.Rectangle(x, y, w, h) })
         return new PIXI.Sprite(tex)
       }
+      const psp = (x: number, y: number, w: number, h: number): PIXI.Sprite => {
+        const tex = new PIXI.Texture({ source: propsAtlasTex.source, frame: new PIXI.Rectangle(x, y, w, h) })
+        return new PIXI.Sprite(tex)
+      }
+      // Returns 4 animation frames from a walk sprite sheet (32×32 per frame)
+      const mkFrames = (tex: PIXI.Texture, row: number): PIXI.Texture[] =>
+        [0,1,2,3].map(col => new PIXI.Texture({ source: tex.source, frame: new PIXI.Rectangle(col*FW, row*FH, FW, FH) }))
 
-      const gameCtx: Ctx = { gt, bsp, nsp }
+      const gameCtx: Ctx = { gt, bsp, nsp, psp }
 
       // ── World container ────────────────────────────────────────
       const world = new PIXI.Container()
@@ -700,27 +696,23 @@ export function GameScene() {
       const npc = new PIXI.Container()
       npc.x = 290; npc.y = GY
       npc.eventMode = 'static'; npc.cursor = 'pointer'
-      const npcG = new PIXI.Graphics()
-      npcG.ellipse(8, 8, 16, 8).fill({ color:0x000000, alpha:0.1 })
-      npcG.rect(-10, -50, 20, 50).fill(K.woodD)
-      npcG.rect(-10, -50, 20, 50).stroke({ color:K.gold, width:1.5 })
-      npcG.rect(-10, -50, 6, 50).fill({ color:K.goldD, alpha:0.3 })
-      npcG.circle(0, -62, 13).fill(0xD4A574)
-      npcG.circle(0, -62, 13).stroke({ color:K.bk, width:1.5 })
-      npcG.rect(-2, -78, 4, 18).fill(K.woodD)
-      npcG.rect(-5, -80, 10, 5).fill(K.woodD)
+      const sifuSpr = new PIXI.AnimatedSprite(mkFrames(sifuWalkTex, 0))
+      sifuSpr.anchor.set(0.5, 1); sifuSpr.scale.set(2.5); sifuSpr.animationSpeed = 0.05; sifuSpr.play()
       const npcLbl = new PIXI.Text({ text:'師父 Liang', style:{ fontSize:9, fill:'#C9A84C', fontFamily:'Georgia,serif' } })
       npcLbl.anchor.set(0.5, 0); npcLbl.y = 4
-      npc.addChild(npcG, npcLbl)
-      npc.on('pointerover', () => { npcG.tint = 0xFFEECC })
-      npc.on('pointerout',  () => { npcG.tint = 0xFFFFFF })
+      npc.addChild(sifuSpr, npcLbl)
+      npc.on('pointerover', () => { sifuSpr.tint = 0xFFEECC })
+      npc.on('pointerout',  () => { sifuSpr.tint = 0xFFFFFF })
       npc.on('pointerdown', () => setNpcText('Discípulo... os pergaminhos dos números aguardam. Encontre os cinco orbes de Hanzi espalhados por este mundo — da Academia até o Templo Antigo. Apenas o cultivo verdadeiro desperta o Qi interior.'))
       charLay.addChild(npc)
 
       // ── Wandering NPCs ─────────────────────────────────────────
-      interface WalkNPC { cont: PIXI.Container; dir: number; spd: number; min: number; max: number; t: number }
+      interface WalkNPC {
+        cont: PIXI.Container; dir: number; spd: number; min: number; max: number; t: number
+        spr: PIXI.AnimatedSprite; leftFrames: PIXI.Texture[]; rightFrames: PIXI.Texture[]
+      }
       const walkers: WalkNPC[] = []
-      const npcColors = [0xC08040, 0x8080C0, 0xA04040, 0x40A060]
+      const npcWalkTexes = [grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex]
       const npcZones = [
         { x:1180, min:1140, max:1280 }, { x:1350, min:1280, max:1470 },
         { x:1420, min:1340, max:1560 }, { x:1500, min:1380, max:1580 },
@@ -728,13 +720,15 @@ export function GameScene() {
       npcZones.forEach((z, i) => {
         const wc = new PIXI.Container()
         wc.x = z.x; wc.y = GY
-        const wg = new PIXI.Graphics()
-        wg.ellipse(5, 5, 10, 6).fill({ color:0x000000, alpha:0.08 })
-        wg.rect(-6, -36, 12, 36).fill(npcColors[i % npcColors.length])
-        wg.circle(0, -44, 9).fill(0xD4A574)
+        const wTex = npcWalkTexes[i % npcWalkTexes.length]
+        const leftFrames  = mkFrames(wTex, 1)
+        const rightFrames = mkFrames(wTex, 2)
+        const initRight = i % 2 === 0
+        const wSpr = new PIXI.AnimatedSprite(initRight ? rightFrames : leftFrames)
+        wSpr.anchor.set(0.5, 1); wSpr.scale.set(2.5); wSpr.animationSpeed = 0.1; wSpr.play()
         charLay.addChild(wc)
-        wc.addChild(wg)
-        walkers.push({ cont:wc, dir:i%2===0?1:-1, spd:0.5+Math.random()*0.4, min:z.min, max:z.max, t:Math.random()*200 })
+        wc.addChild(wSpr)
+        walkers.push({ cont:wc, dir:initRight?1:-1, spd:0.5+Math.random()*0.4, min:z.min, max:z.max, t:Math.random()*200, spr:wSpr, leftFrames, rightFrames })
       })
 
       // ── Orbs ──────────────────────────────────────────────────
@@ -789,16 +783,24 @@ export function GameScene() {
       const playerShadow = new PIXI.Graphics()
       playerShadow.ellipse(0, 0, 20, 7).fill({ color: 0x000000, alpha: 0.18 })
 
-      // Character sprite from tileset (first character, front frame ~730,2 size 72×92)
-      const playerSpr = tileSprite(730, 2, 72, 92)
+      const playerFrames = {
+        down:  mkFrames(playerWalkTex, 0),
+        left:  mkFrames(playerWalkTex, 1),
+        right: mkFrames(playerWalkTex, 2),
+        up:    mkFrames(playerWalkTex, 3),
+      }
+      const playerSpr = new PIXI.AnimatedSprite(playerFrames.down)
       playerSpr.anchor.set(0.5, 1.0)
-      playerSpr.scale.set(0.75)
+      playerSpr.scale.set(2.5)
+      playerSpr.animationSpeed = 0.12
+      playerSpr.play()
 
       const player = new PIXI.Container()
       player.addChild(playerSpr)
       player.x = 210; player.y = GY
       playerShadow.x = 210; playerShadow.y = GY + 5
       charLay.addChild(playerShadow, player)
+      let playerDir: keyof typeof playerFrames = 'down'
 
       // ── Falling leaves ────────────────────────────────────────
       interface Leaf { g: PIXI.Graphics; x: number; y: number; vx: number; vy: number; rot: number; alpha: number; color: number }
@@ -870,17 +872,27 @@ export function GameScene() {
         const spd = 2.8 * tk.deltaTime
 
         // Player movement
-        if (keys['ArrowUp']    || keys['w'] || keys['W']) player.y -= spd
-        if (keys['ArrowDown']  || keys['s'] || keys['S']) player.y += spd
-        if (keys['ArrowLeft']  || keys['a'] || keys['A']) player.x -= spd
-        if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x += spd
+        const mx = (keys['ArrowLeft']||keys['a']||keys['A'])?-1:(keys['ArrowRight']||keys['d']||keys['D'])?1:0
+        const my = (keys['ArrowUp']||keys['w']||keys['W'])?-1:(keys['ArrowDown']||keys['s']||keys['S'])?1:0
+        const moving = mx !== 0 || my !== 0
+        if (moving) {
+          player.x += mx * spd; player.y += my * spd
+          const newDir: keyof typeof playerFrames =
+            (Math.abs(my) >= Math.abs(mx)) ? (my > 0 ? 'down' : 'up') : (mx > 0 ? 'right' : 'left')
+          if (newDir !== playerDir) {
+            playerDir = newDir
+            playerSpr.textures = playerFrames[playerDir]
+            playerSpr.gotoAndPlay(0)
+          }
+          if (!playerSpr.playing) playerSpr.play()
+        } else {
+          playerSpr.stop()
+          playerSpr.currentFrame = 0
+        }
         player.x = Math.max(16, Math.min(WW - 16, player.x))
         player.y = Math.max(520, Math.min(WH - 16, player.y))
         playerShadow.x = player.x + 4
         playerShadow.y = player.y + 5
-        // Flip character sprite to face movement direction
-        if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerSpr.scale.x = -0.75
-        else if (keys['ArrowRight'] || keys['d'] || keys['D']) playerSpr.scale.x = 0.75
 
         // Camera smooth follow
         targetCam.x = player.x - W / 2
@@ -902,9 +914,12 @@ export function GameScene() {
         walkers.forEach((w) => {
           w.t += tk.deltaTime
           w.cont.x += w.dir * w.spd * tk.deltaTime
-          if (w.cont.x > w.max) { w.dir = -1; w.cont.scale.x = -1 }
-          if (w.cont.x < w.min) { w.dir = 1;  w.cont.scale.x = 1 }
-          // Walking bob
+          const newDir = w.cont.x > w.max ? -1 : w.cont.x < w.min ? 1 : w.dir
+          if (newDir !== w.dir) {
+            w.dir = newDir
+            w.spr.textures = w.dir > 0 ? w.rightFrames : w.leftFrames
+            w.spr.gotoAndPlay(0)
+          }
           w.cont.y = GY + Math.abs(Math.sin(w.t * 0.15)) * 3
         })
 
