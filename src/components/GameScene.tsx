@@ -186,13 +186,16 @@ function drawSign(cont: PIXI.Container, x: number, y: number, text: string) {
 // ─────────────────────────────────────────────────────────────────
 // Render layer architecture (12 logical layers → 6 PIXI containers)
 //
-//  #01-02  skyLay    Sky gradient + clouds                (parallax 0.12×)
-//  #03-04  mtnLay    Mountain silhouettes + hills          (parallax 0.06×)
-//  #05-06  groundLay Terrain tiles (grass, stone, water)  (world-fixed)
-//  #07     infraLay  Walls, fences, bridges, steps, signs (world-fixed, under Y-sort)
-//  #08-11  ysortLay  Y-SORTED: buildings + trees + props + NPCs + player
-//  #12     partLay   Particles, weather FX                (always on top)
+//  app.stage
+//    #01-02  skyLay    Sky gradient + clouds                (viewport-fixed, x-parallax 0.12×)
+//    #03-04  mtnLay    Mountain silhouettes + hills          (viewport-fixed, x-parallax 0.06×)
+//    world   (scrolls with camera)
+//      #05-06  groundLay Terrain tiles (grass, stone, water)  (world-fixed)
+//      #07     infraLay  Walls, fences, bridges, steps, signs (world-fixed, under Y-sort)
+//      #08-11  ysortLay  Y-SORTED: buildings + trees + props + NPCs + player
+//      #12     partLay   Particles, weather FX                (always on top)
 //
+// skyLay/mtnLay on app.stage → never scroll vertically, only horizontal parallax.
 // Y-sort rule: every child of ysortLay must have .y = its foot/base Y in world space.
 // Ticker sorts ysortLay.children by .y each frame — higher Y renders in front.
 // ─────────────────────────────────────────────────────────────────
@@ -490,13 +493,16 @@ function buildZone5Temple(ground: PIXI.Container, infra: PIXI.Container, ysort: 
 }
 
 // ── Sky layer ─────────────────────────────────────────────────────
+// skyLay is viewport-fixed (on app.stage). All coords are screen-space (W×H).
+// Extra width: WW+400 so the content covers the full parallax travel range.
 function buildSky(sky: PIXI.Container) {
   const g = new PIXI.Graphics()
-  g.rect(0, 0, WW, 180).fill(K.skyT)
-  g.rect(0, 100, WW, 120).fill({ color: K.skyM, alpha: 0.6 })
-  g.rect(0, 180, WW, 100).fill({ color: K.skyH, alpha: 0.5 })
-  for (let i=0;i<14;i++) {
-    const cx=rng(i,90)*WW, cy=30+rng(i,91)*100, cw=60+rng(i,92)*100
+  const sw = WW + 400
+  g.rect(0, 0, sw, H).fill(K.skyT)
+  g.rect(0, 0, sw, H * 0.42).fill({ color: K.skyM, alpha: 0.48 })
+  g.rect(0, H * 0.28, sw, H * 0.38).fill({ color: K.skyH, alpha: 0.32 })
+  for (let i=0;i<20;i++) {
+    const cx=rng(i,90)*sw, cy=H*0.04+rng(i,91)*H*0.38, cw=60+rng(i,92)*110
     g.ellipse(cx, cy, cw, 20+rng(i,93)*18).fill({ color: 0xF0F5FA, alpha: 0.55+rng(i,94)*0.25 })
     g.ellipse(cx-cw*0.25, cy-10, cw*0.5, 18+rng(i,95)*10).fill({ color: 0xF8FBFF, alpha: 0.45+rng(i,96)*0.2 })
     g.ellipse(cx+cw*0.2,  cy-8,  cw*0.45, 16+rng(i,97)*8).fill({ color: 0xF0F5FA, alpha: 0.4+rng(i,98)*0.2 })
@@ -505,21 +511,25 @@ function buildSky(sky: PIXI.Container) {
 }
 
 // ── Mountain layer ────────────────────────────────────────────────
+// mtnLay is viewport-fixed (on app.stage). All Y coords are screen-space.
+// Horizon at 58% of viewport height (~325 px). Extra width for parallax travel.
 function buildMountains(mtn: PIXI.Container) {
   const g = new PIXI.Graphics()
+  const sw = WW + 400
+  const horiz = Math.round(H * 0.58)  // ~325 px
   for (let i=0;i<9;i++) {
-    const mx=rng(i,80)*WW*1.2-WW*0.1, mh=120+rng(i,81)*100, mw=200+rng(i,82)*180
-    g.poly([mx, 300, mx+mw/2, 300-mh, mx+mw, 300]).fill({ color: K.mtnF, alpha: 0.35+rng(i,83)*0.15 })
+    const mx=rng(i,80)*sw-200, mh=100+rng(i,81)*90, mw=200+rng(i,82)*200
+    g.poly([mx, horiz, mx+mw/2, horiz-mh, mx+mw, horiz]).fill({ color: K.mtnF, alpha: 0.35+rng(i,83)*0.15 })
   }
   for (let i=0;i<7;i++) {
-    const mx=rng(i+20,80)*WW*1.1-WW*0.05, mh=90+rng(i+20,81)*80, mw=170+rng(i+20,82)*140
-    g.poly([mx, 360, mx+mw/2, 360-mh, mx+mw, 360]).fill({ color: K.mtnM, alpha: 0.4+rng(i+20,83)*0.2 })
+    const mx=rng(i+20,80)*sw-150, mh=65+rng(i+20,81)*65, mw=170+rng(i+20,82)*160
+    g.poly([mx, horiz+35, mx+mw/2, horiz+35-mh, mx+mw, horiz+35]).fill({ color: K.mtnM, alpha: 0.4+rng(i+20,83)*0.2 })
   }
-  for (let i=0;i<12;i++) {
-    const hx=rng(i,70)*WW, hy=400+rng(i,71)*60, hw=100+rng(i,72)*120
-    g.ellipse(hx, hy, hw, 55+rng(i,73)*40).fill({ color: K.hillF, alpha: 0.5+rng(i,74)*0.25 })
+  for (let i=0;i<14;i++) {
+    const hx=rng(i,70)*sw, hy=horiz+18+rng(i,71)*55, hw=80+rng(i,72)*130
+    g.ellipse(hx, hy, hw, 42+rng(i,73)*32).fill({ color: K.hillF, alpha: 0.5+rng(i,74)*0.25 })
   }
-  g.rect(0, 520, WW, 380).fill(K.grassD)
+  g.rect(0, horiz+12, sw, H - horiz).fill(K.hillN)
   mtn.addChild(g)
 }
 
@@ -635,16 +645,18 @@ export function GameScene() {
 
       // ── World container ────────────────────────────────────────
       const world = new PIXI.Container()
-      app.stage.addChild(world)
 
       // ── 12-Layer Rendering System ──────────────────────────────
-      const skyLay    = new PIXI.Container()  // #01-02 Sky + clouds      (parallax 0.12×)
-      const mtnLay    = new PIXI.Container()  // #03-04 Mountains + hills  (parallax 0.06×)
+      // skyLay/mtnLay go on app.stage FIRST (viewport-fixed backgrounds).
+      // world goes on app.stage AFTER them so it renders on top.
+      const skyLay    = new PIXI.Container()  // #01-02 Sky + clouds      (viewport-fixed, x-parallax 0.12×)
+      const mtnLay    = new PIXI.Container()  // #03-04 Mountains + hills  (viewport-fixed, x-parallax 0.06×)
       const groundLay = new PIXI.Container()  // #05-06 Terrain tiles      (world-fixed)
       const infraLay  = new PIXI.Container()  // #07    Walls/fences/signs (world-fixed, under ysort)
       const ysortLay  = new PIXI.Container()  // #08-11 Y-sorted world objects
       const partLay   = new PIXI.Container()  // #12    Particles + FX     (always on top)
-      world.addChild(skyLay, mtnLay, groundLay, infraLay, ysortLay, partLay)
+      app.stage.addChild(skyLay, mtnLay, world)   // order matters: sky → mountains → world
+      world.addChild(groundLay, infraLay, ysortLay, partLay)
 
       // ── Build world ────────────────────────────────────────────
       buildSky(skyLay)
@@ -756,8 +768,9 @@ export function GameScene() {
       dragonSpr.scale.set(3.8)
       dragonSpr.animationSpeed = 0.09
       dragonSpr.play()
-      dragonSpr.x = 700; dragonSpr.y = 235
-      partLay.addChild(dragonSpr)
+      // Dragon lives in skyLay (viewport-fixed, draws behind all world content)
+      dragonSpr.x = 700; dragonSpr.y = Math.round(H * 0.42)
+      skyLay.addChild(dragonSpr)
 
       // ── Player (ysort) ────────────────────────────────────────
       const playerShadow = new PIXI.Graphics()
@@ -887,9 +900,10 @@ export function GameScene() {
         world.x = -Math.round(camX)
         world.y = -Math.round(camY)
 
-        // Dual-rate parallax: clouds scroll faster than mountains
-        skyLay.x = Math.round(camX * 0.12)
-        mtnLay.x = Math.round(camX * 0.06)
+        // Dual-rate parallax (skyLay/mtnLay are on app.stage, not inside world)
+        // sky at 12% of camera speed, mountains at 6%
+        skyLay.x = -Math.round(camX * 0.12)
+        mtnLay.x = -Math.round(camX * 0.06)
 
         // NPC float
         npc.y = GY + Math.sin(t * 0.02) * 3
@@ -930,7 +944,7 @@ export function GameScene() {
         dragonWX += 0.55 * tk.deltaTime
         if (dragonWX > WW + 160) dragonWX = -160
         dragonSpr.x = dragonWX
-        dragonSpr.y = 232 + Math.sin(t * 0.016) * 16
+        dragonSpr.y = Math.round(H * 0.42) + Math.sin(t * 0.016) * 16
 
         // Birds
         birds.forEach((b) => {
