@@ -318,16 +318,6 @@ function buildZone3Village(ground: PIXI.Container, infra: PIXI.Container, ysort:
   for (let i=0;i<3;i++) pond.circle(1525+i*25, GY+25, 3).fill({ color: 0xFF8030, alpha: 0.8 })
   ground.addChild(pond)
 
-  const houses = new PIXI.Graphics()
-  for (let i=0;i<4;i++) {
-    const hx=1110+i*105, hw=88, hh=110
-    houses.rect(hx, GY-200-hh, hw, hh).fill(K.wallS)
-    for (let j=0;j<2;j++) houses.rect(hx+hw*j/1-(j>0?10:0), GY-200-hh, 10, hh).fill(K.colRD)
-    const roh=hw*0.2, rrh=hh*0.5
-    houses.poly([hx-roh, GY-200, hx+hw*0.3, GY-200-rrh, hx+hw-hw*0.3, GY-200-rrh, hx+hw+roh, GY-200]).fill(K.roofM)
-  }
-  ground.addChild(houses)
-
   const mkS = (text: string, x: number, y: number) => {
     const g = new PIXI.Graphics(); g.rect(x-32, y, 64, 22).fill(K.redD); infra.addChild(g)
     const t = new PIXI.Text({ text, style:{ fontSize:12, fill:'#F0D050', fontFamily:'"Noto Serif SC",serif', fontWeight:'700' } })
