@@ -7,6 +7,8 @@ import { W, H, WW, WH, GY, FW, FH, K } from '../world/constants'
 import { RenderPipeline } from '../engine/RenderPipeline'
 import { AtlasRegistry } from '../engine/AtlasRegistry'
 import { buildSky, buildMountains, buildWorld } from '../world/buildWorld'
+import { moveInput, DEAD_ZONE, RUN_THRESHOLD, RUN_SPEED_MULT } from '../input/InputState'
+import { MobileControls } from '../input/MobileControls'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GameScene — orchestrates PIXI app, loads assets, places entities.
@@ -266,12 +268,29 @@ export function GameScene() {
         t += tk.deltaTime
         const spd = 2.8 * tk.deltaTime
 
+        // ── Input resolution: joystick takes priority over keyboard ──────────
+        let mx: number, my: number, speedMult: number
+
+        if (moveInput.magnitude > DEAD_ZONE) {
+          // Analog joystick — variable speed; past RUN_THRESHOLD = running
+          mx        = moveInput.dx
+          my        = moveInput.dy
+          speedMult = moveInput.magnitude >= RUN_THRESHOLD
+            ? RUN_SPEED_MULT
+            : moveInput.magnitude  // walk proportional to push distance
+        } else {
+          // Digital keyboard — always full speed
+          const kx = (keys['ArrowLeft'] || keys['a'] || keys['A']) ? -1 : (keys['ArrowRight'] || keys['d'] || keys['D']) ? 1 : 0
+          const ky = (keys['ArrowUp']   || keys['w'] || keys['W']) ? -1 : (keys['ArrowDown']  || keys['s'] || keys['S']) ? 1 : 0
+          mx = kx; my = ky
+          speedMult = (kx !== 0 || ky !== 0) ? 1.0 : 0
+        }
+
         // Player movement
-        const mx = (keys['ArrowLeft'] || keys['a'] || keys['A']) ? -1 : (keys['ArrowRight'] || keys['d'] || keys['D']) ? 1 : 0
-        const my = (keys['ArrowUp']   || keys['w'] || keys['W']) ? -1 : (keys['ArrowDown']  || keys['s'] || keys['S']) ? 1 : 0
-        const moving = mx !== 0 || my !== 0
+        const moving = speedMult > 0
         if (moving) {
-          player.x += mx * spd; player.y += my * spd
+          player.x += mx * spd * speedMult
+          player.y += my * spd * speedMult
           const newDir: keyof typeof playerFrames =
             (Math.abs(my) >= Math.abs(mx)) ? (my > 0 ? 'down' : 'up') : (mx > 0 ? 'right' : 'left')
           if (newDir !== playerDir) {
@@ -386,8 +405,14 @@ export function GameScene() {
   }, [])
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center bg-[#1A2030] overflow-hidden">
+    <div
+      className="relative w-full h-full flex items-center justify-center bg-[#1A2030] overflow-hidden"
+      style={{ touchAction: 'none' }}
+    >
       <div ref={containerRef} />
+
+      {/* Mobile virtual joystick + action buttons */}
+      <MobileControls />
 
       {npcText && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 w-full max-w-lg px-4">

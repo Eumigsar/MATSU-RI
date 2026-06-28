@@ -16,6 +16,9 @@
     height: 100%;
     overflow: hidden;
     background-color: #1A1A1A;
+    /* Prevent pull-to-refresh and rubber-band scroll on mobile */
+    overscroll-behavior: none;
+    touch-action: none;
   }
 
   body {
