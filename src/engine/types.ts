@@ -45,6 +45,23 @@ export type LayerId =
   | 'lighting'
   | 'ui'
 
+// ─── Character animation types ────────────────────────────────────────────────
+// Shared between AnimationController and CharacterRenderer.
+
+export interface FrameRect { x: number; y: number; w: number; h: number }
+
+export type Direction = 'down' | 'left' | 'right' | 'up'
+
+export interface AnimDef {
+  frames:      FrameRect[]
+  fps:         number
+  loop:        boolean
+  next:        string | null                          // plays on completion (non-looping)
+  directions?: Partial<Record<Direction, FrameRect[]>> // per-direction frame overrides
+}
+
+export type AnimationSet = Record<string, AnimDef>
+
 // ─── Chunk definition ─────────────────────────────────────────────────────────
 // A chunk is a rectangular region of the world with its own layer containers.
 // Future ChunkManager will load/unload chunks based on camera position.

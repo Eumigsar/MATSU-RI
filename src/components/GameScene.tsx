@@ -7,6 +7,8 @@ import { W, H, WW, WH, GY, FW, FH, K } from '../world/constants'
 import { RenderPipeline } from '../engine/RenderPipeline'
 import { AtlasRegistry, OA } from '../engine/AtlasRegistry'
 import { CharacterRenderer } from '../engine/CharacterRenderer'
+import { AnimationController } from '../engine/AnimationController'
+import type { Direction } from '../engine/AnimationController'
 import { buildSky, buildMountains, buildWorld } from '../world/buildWorld'
 import { moveInput, DEAD_ZONE, RUN_THRESHOLD, RUN_SPEED_MULT } from '../input/InputState'
 import { MobileControls } from '../input/MobileControls'
@@ -188,7 +190,7 @@ export function GameScene() {
       let playerX = 210, playerY = GY
       playerShadow.x = 210; playerShadow.y = GY + 5
       ysortLay.addChild(playerShadow)
-      let playerDir: 'down' | 'left' | 'right' | 'up' = 'down'
+      const playerCtrl = new AnimationController(charRenderer.getAnimations('r0_c0'))
 
       // ── Falling leaves ─────────────────────────────────────────
       interface Leaf { g: PIXI.Sprite; x: number; y: number; vx: number; vy: number; rot: number }
@@ -278,18 +280,22 @@ export function GameScene() {
           speedMult = (kx !== 0 || ky !== 0) ? 1.0 : 0
         }
 
-        // Player movement
+        // Player movement — controller auto-switches idle ↔ walk ↔ run
         const moving = speedMult > 0
         if (moving) {
           playerX += mx * spd * speedMult
           playerY += my * spd * speedMult
-          playerDir = (Math.abs(my) >= Math.abs(mx)) ? (my > 0 ? 'down' : 'up') : (mx > 0 ? 'right' : 'left')
+          const dir: Direction = (Math.abs(my) >= Math.abs(mx)) ? (my > 0 ? 'down' : 'up') : (mx > 0 ? 'right' : 'left')
+          playerCtrl.setState(speedMult >= RUN_SPEED_MULT ? 'run' : 'walk', dir)
+        } else {
+          playerCtrl.setState('idle')
         }
+        playerCtrl.update(tk.deltaTime)
         playerX = Math.max(16, Math.min(WW - 16, playerX))
         playerY = Math.max(520, Math.min(WH - 16, playerY))
         playerShadow.x = playerX + 4
         playerShadow.y = playerY + 5
-        charRenderer.render(ysortLay, 'r0_c0', 'idle', playerDir, 0, playerX, playerY)
+        charRenderer.render(ysortLay, 'r0_c0', playerCtrl.animation, playerCtrl.direction, playerCtrl.frameIndex, playerX, playerY)
 
         // Camera smooth follow
         targetCam.x = playerX - W / 2

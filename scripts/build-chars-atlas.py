@@ -189,6 +189,21 @@ for i, c in enumerate(characters):
     out_img.paste(crop, (paste_x, paste_y), crop)
 
     key = f"r{c['band']}_c{c['col_idx']}"
+    idle_frame = {'x': cell_x0, 'y': cell_y0, 'w': CELL_W, 'h': CELL_H}
+
+    # Animation definitions — all animations fall back to the single idle portrait
+    # frame until the atlas gains multi-frame walk/attack strips. fps, loop, and
+    # next are fully specified so the engine timing is correct from day one; adding
+    # real frames later requires only a JSON update, no code changes.
+    animations = {
+        'idle':     {'frames': [idle_frame], 'fps': 1,  'loop': True,  'next': None},
+        'walk':     {'frames': [idle_frame], 'fps': 8,  'loop': True,  'next': None},
+        'run':      {'frames': [idle_frame], 'fps': 12, 'loop': True,  'next': None},
+        'attack':   {'frames': [idle_frame], 'fps': 12, 'loop': False, 'next': 'idle'},
+        'interact': {'frames': [idle_frame], 'fps': 4,  'loop': False, 'next': 'idle'},
+        'sit':      {'frames': [idle_frame], 'fps': 2,  'loop': True,  'next': None},
+    }
+
     char_map[key] = {
         'band':       c['band'],
         'col_idx':    c['col_idx'],
@@ -196,14 +211,10 @@ for i, c in enumerate(characters):
             'x': c['src_x'], 'y': c['src_y'],
             'w': c['src_w'], 'h': c['src_h'],
         },
-        'atlas_col': out_col,
-        'atlas_row': out_row,
-        'frames': {
-            'idle': {
-                'x': cell_x0, 'y': cell_y0,
-                'w': CELL_W,  'h': CELL_H,
-            }
-        },
+        'atlas_col':  out_col,
+        'atlas_row':  out_row,
+        'animations': animations,
+        'frames': {'idle': idle_frame},   # legacy field kept for backward compat
     }
 
 # ── Save outputs ──────────────────────────────────────────────────────────────
@@ -211,7 +222,7 @@ out_img.save(OUTP, 'PNG')
 print(f"\n  ✓ Saved {OUTP}")
 
 meta = {
-    'version':      1,
+    'version':      2,
     'source':       'chars-atlas.png',
     'cell_w':       CELL_W,
     'cell_h':       CELL_H,
