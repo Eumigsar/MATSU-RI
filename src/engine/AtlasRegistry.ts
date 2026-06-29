@@ -132,12 +132,12 @@ export class AtlasRegistry {
 
   async load(): Promise<void> {
     const [ground, building, nature, props, tileset, overlay] = await Promise.all([
-      AtlasRegistry.loadTex('/assets/ground-atlas.png'),
-      AtlasRegistry.loadTex('/assets/building-atlas.png'),
-      AtlasRegistry.loadTex('/assets/nature-atlas.png'),
-      AtlasRegistry.loadTex('/assets/props-atlas.png'),
-      AtlasRegistry.loadAndRemoveBg('/assets/tileset.png'),
-      AtlasRegistry.loadTex('/assets/pixel-art-overlay-atlas.png'),
+      AtlasRegistry.loadTex('/assets/terrain/ground-atlas.png'),
+      AtlasRegistry.loadTex('/assets/objects/building-atlas.png'),
+      AtlasRegistry.loadTex('/assets/objects/nature-atlas.png'),
+      AtlasRegistry.loadTex('/assets/objects/props-atlas.png'),
+      AtlasRegistry.loadAndRemoveBg('/assets/objects/tileset.png'),
+      AtlasRegistry.loadTex('/assets/objects/overlay-atlas.png'),
     ])
     this.groundTex   = ground
     this.buildingTex = building

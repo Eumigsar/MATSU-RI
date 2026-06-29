@@ -36,7 +36,7 @@ export function AuthScreen({ onDemo }: Props) {
     <div
       className="relative w-full h-full overflow-hidden flex items-center justify-center"
       style={{
-        backgroundImage: 'url(/assets/bg-login.png)',
+        backgroundImage: 'url(/assets/backgrounds/bg-login.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center center',
         backgroundColor: '#EDE4D0',

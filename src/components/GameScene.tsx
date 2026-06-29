@@ -64,15 +64,15 @@ export function GameScene() {
       const [playerWalkTex, sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex,
              jadeWalkTex, redWalkTex, dragonTex] =
         await Promise.all([
-          AtlasRegistry.loadWalkTex('/assets/player_apprentice_blue_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/sifu_liang_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/grandma_zhang_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/hua_lan_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/wen_bo_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/little_wu_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/player_apprentice_jade_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/player_apprentice_red_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/xiao_long_paper_dragon_float.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/player_apprentice_blue_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/sifu_liang_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/grandma_zhang_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/hua_lan_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/wen_bo_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/little_wu_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/player_apprentice_jade_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/player_apprentice_red_walk.png'),
+          AtlasRegistry.loadWalkTex('/assets/characters/xiao_long_paper_dragon_float.png'),
         ])
 
       const mkFrames = (tex: PIXI.Texture, row: number): PIXI.Texture[] =>
