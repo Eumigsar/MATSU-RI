@@ -48,6 +48,41 @@ export const PA = {
   INCENSE:   [855, 840, 140, 143] as const,
 } as const
 
+// ─── Overlay Atlas (pixel-art-overlay-atlas.png, 1536×1024 RGBA) ──────────────
+// Clouds, roof eaves, petal heaps, water patches, mist bands.
+export const OA = {
+  ROOF_LG_1:   [14,   10, 290, 142] as const,
+  ROOF_LG_2:   [314,  10, 220, 142] as const,
+  ROOF_SM_1:   [540,  10, 100, 100] as const,
+  ROOF_SM_2:   [648,  10,  90, 100] as const,
+
+  CLOUD_DK_1:  [668,   8, 148, 120] as const,
+  CLOUD_DK_2:  [820,   8, 155, 120] as const,
+  CLOUD_DK_3:  [978,   8, 148, 120] as const,
+  CLOUD_DK_4:  [1130,  8, 155, 120] as const,
+  CLOUD_DK_5:  [1288,  8, 148, 120] as const,
+
+  CLOUD_WH_1:  [6,   942, 330,  80] as const,
+  CLOUD_WH_2:  [342, 942, 280,  80] as const,
+  CLOUD_WH_3:  [630, 942, 240,  80] as const,
+
+  CLOUD_SND_1: [8,   500, 220,  80] as const,
+  CLOUD_SND_2: [238, 500, 225,  80] as const,
+  CLOUD_SND_3: [472, 500, 215,  80] as const,
+
+  FOG_STRIP_1: [838, 660, 698,  52] as const,
+  FOG_STRIP_2: [838, 718, 698,  58] as const,
+  FOG_STRIP_3: [838, 790, 698,  52] as const,
+
+  WATER_PAT_1: [8,   660, 210,  68] as const,
+  WATER_PAT_2: [228, 660, 218,  68] as const,
+  WATER_PAT_3: [454, 660, 210,  68] as const,
+  WATER_PAT_4: [672, 660, 188,  68] as const,
+
+  PETAL_HEAP:  [328, 330, 190, 100] as const,
+  GOLD_HEAP:   [10,  330, 155, 100] as const,
+} as const
+
 // ─── Atlas Registry ───────────────────────────────────────────────────────────
 // Loads all atlases once. Provides sprite factory functions via buildCtx().
 export class AtlasRegistry {
@@ -56,6 +91,7 @@ export class AtlasRegistry {
   private natureTex!:   PIXI.Texture
   private propsTex!:    PIXI.Texture
   private tilesetTex!:  PIXI.Texture
+  private overlayTex!:  PIXI.Texture
 
   // Load a PNG via canvas so alpha is preserved correctly across browsers.
   private static loadTex(src: string): Promise<PIXI.Texture> {
@@ -95,18 +131,20 @@ export class AtlasRegistry {
   }
 
   async load(): Promise<void> {
-    const [ground, building, nature, props, tileset] = await Promise.all([
+    const [ground, building, nature, props, tileset, overlay] = await Promise.all([
       AtlasRegistry.loadTex('/assets/ground-atlas.png'),
       AtlasRegistry.loadTex('/assets/building-atlas.png'),
       AtlasRegistry.loadTex('/assets/nature-atlas.png'),
       AtlasRegistry.loadTex('/assets/props-atlas.png'),
       AtlasRegistry.loadAndRemoveBg('/assets/tileset.png'),
+      AtlasRegistry.loadTex('/assets/pixel-art-overlay-atlas.png'),
     ])
     this.groundTex   = ground
     this.buildingTex = building
     this.natureTex   = nature
     this.propsTex    = props
     this.tilesetTex  = tileset
+    this.overlayTex  = overlay
   }
 
   // Load additional walk sprite textures (for NPCs and player).
@@ -132,7 +170,8 @@ export class AtlasRegistry {
     const nsp = (x: number, y: number, w: number, h: number) => crop(this.natureTex,   x, y, w, h)
     const psp = (x: number, y: number, w: number, h: number) => crop(this.propsTex,    x, y, w, h)
     const tsp = (x: number, y: number, w: number, h: number) => crop(this.tilesetTex,  x, y, w, h)
+    const osp = (x: number, y: number, w: number, h: number) => crop(this.overlayTex,  x, y, w, h)
 
-    return { gt, bsp, nsp, psp, tsp }
+    return { gt, bsp, nsp, psp, tsp, osp }
   }
 }

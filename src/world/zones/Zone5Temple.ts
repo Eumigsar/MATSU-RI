@@ -30,17 +30,8 @@ export function buildZone5Temple(layers: ZoneLayers, ctx: RenderCtx): void {
   ts.rect(2400, GY - 22, 120, 8).fill(K.stoneL)
   infra.addChild(ts)
 
-  // Stone lion statues flanking courtyard
-  const stat = new PIXI.Graphics()
-  for (const sx of [2236, 2640]) {
-    stat.ellipse(sx, GY + 8,  16, 10).fill({ color: 0x000000, alpha: 0.1 })
-    stat.rect(sx - 8,  GY - 70, 16, 70).fill(K.stoneD)
-    stat.ellipse(sx, GY - 72, 14, 14).fill(K.stone)
-    stat.rect(sx - 20, GY - 60,  8, 30).fill(K.stoneD)
-    stat.rect(sx + 12, GY - 60,  8, 30).fill(K.stoneD)
-    stat.rect(sx - 14, GY - 30, 28,  8).fill(K.stoneL)
-  }
-  infra.addChild(stat)
+  // Stone guardian rocks flanking courtyard entrance (replace procedural statues)
+  // Added to ysort so player can pass behind/in front of them
 
   // Dao/De/Ren tablets
   const tab = new PIXI.Graphics()
@@ -75,6 +66,10 @@ export function buildZone5Temple(layers: ZoneLayers, ctx: RenderCtx): void {
   const gate   = ctx.bsp(...BA.GATE_SM);  gate.anchor.set(0.5, 1);  gate.x   = 2280; gate.y   = GY;      gate.scale.set(1.05);  ysort.addChild(gate)
   const bell   = ctx.bsp(...BA.FAC_NARR); bell.anchor.set(0, 1);    bell.x   = 2210; bell.y   = GY - 30; bell.scale.set(0.88);  ysort.addChild(bell)
   const temple = ctx.bsp(...BA.FAC_WIDE); temple.anchor.set(0, 1);  temple.x = 2345; temple.y = GY;      temple.scale.set(1.12); ysort.addChild(temple)
+
+  // Stone guardian rocks flanking courtyard — replace procedural geometric statues
+  const guard1 = ctx.nsp(...NA.ROCK_LG); guard1.anchor.set(0.5, 1); guard1.x = 2236; guard1.y = GY; guard1.scale.set(0.58); ysort.addChild(guard1)
+  const guard2 = ctx.nsp(...NA.ROCK_LG); guard2.anchor.set(0.5, 1); guard2.x = 2640; guard2.y = GY; guard2.scale.set(0.58); ysort.addChild(guard2)
 
   const oak1 = ctx.nsp(...NA.BONSAI_2); oak1.anchor.set(0.5, 1); oak1.x = 2192; oak1.y = GY; oak1.scale.set(1.10); ysort.addChild(oak1)
   const oak2 = ctx.nsp(...NA.BONSAI_4); oak2.anchor.set(0.5, 1); oak2.x = 2660; oak2.y = GY; oak2.scale.set(1.00); ysort.addChild(oak2)

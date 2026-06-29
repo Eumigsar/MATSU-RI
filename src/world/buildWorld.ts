@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { WW, H, GY, rng, K } from './constants'
+import { OA } from '../engine/AtlasRegistry'
 import { drawSign } from './drawHelpers'
 import { buildZone1Academy } from './zones/Zone1Academy'
 import { buildZone2Bamboo }  from './zones/Zone2Bamboo'
@@ -12,19 +13,29 @@ import type { PipelineLayers } from '../engine/RenderPipeline'
 // ─── Sky ──────────────────────────────────────────────────────────────────────
 // Viewport-fixed layer — lives on app.stage, never scrolls vertically.
 // Extra width (WW+400) so clouds cover the full parallax travel range.
-export function buildSky(sky: PIXI.Container): void {
-  const g  = new PIXI.Graphics()
+export function buildSky(sky: PIXI.Container, ctx: RenderCtx): void {
   const sw = WW + 400
+  // Gradient colour fills — background only, permitted procedural use
+  const g = new PIXI.Graphics()
   g.rect(0, 0, sw, H).fill(K.skyT)
   g.rect(0, 0, sw, H * 0.42).fill({ color: K.skyM, alpha: 0.48 })
   g.rect(0, H * 0.28, sw, H * 0.38).fill({ color: K.skyH, alpha: 0.32 })
-  for (let i = 0; i < 20; i++) {
-    const cx = rng(i, 90) * sw, cy = H * 0.04 + rng(i, 91) * H * 0.38, cw = 60 + rng(i, 92) * 110
-    g.ellipse(cx, cy, cw, 20 + rng(i, 93) * 18).fill({ color: 0xF0F5FA, alpha: 0.55 + rng(i, 94) * 0.25 })
-    g.ellipse(cx - cw * 0.25, cy - 10, cw * 0.5,  18 + rng(i, 95) * 10).fill({ color: 0xF8FBFF, alpha: 0.45 + rng(i, 96) * 0.20 })
-    g.ellipse(cx + cw * 0.20, cy - 8,  cw * 0.45, 16 + rng(i, 97) *  8).fill({ color: 0xF0F5FA, alpha: 0.40 + rng(i, 98) * 0.20 })
-  }
   sky.addChild(g)
+
+  // Sky clouds — overlay atlas sprites scattered across parallax range
+  const cloudCoords: readonly (readonly [number, number, number, number])[] = [
+    OA.CLOUD_WH_1, OA.CLOUD_WH_2, OA.CLOUD_WH_3,
+    OA.CLOUD_SND_1, OA.CLOUD_SND_2, OA.CLOUD_SND_3,
+  ]
+  for (let i = 0; i < 20; i++) {
+    const coord = cloudCoords[i % cloudCoords.length]
+    const c = ctx.osp(coord[0], coord[1], coord[2], coord[3])
+    c.x     = rng(i, 90) * sw
+    c.y     = H * 0.02 + rng(i, 91) * H * 0.28
+    c.scale.set(0.55 + rng(i, 92) * 0.60)
+    c.alpha = 0.60 + rng(i, 93) * 0.35
+    sky.addChild(c)
+  }
 }
 
 // ─── Mountains ────────────────────────────────────────────────────────────────

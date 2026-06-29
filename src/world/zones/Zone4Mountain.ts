@@ -61,16 +61,16 @@ export function buildZone4Mountain(layers: ZoneLayers, ctx: RenderCtx): void {
   for (let i = 0; i < 10; i++) wf.ellipse(1916 + i * 5, GY - 118, 7, 4).fill({ color: K.wF, alpha: 0.55 })
   infra.addChild(wf)
 
-  // Cave entrance
-  const cave = new PIXI.Graphics()
-  cave.ellipse(2130, GY - 135, 32, 24).fill({ color: 0x0A0808, alpha: 0.9 })
-  cave.ellipse(2128, GY - 134, 28, 20).fill({ color: 0x050505 })
-  drawStoneWall(cave, 2100, GY - 160, 70, 30)
-  infra.addChild(cave)
+  // Cave entrance — rock arch formation from nature atlas
   drawSign(infra, 2130, GY - 160, '隱谷')
 
   // ── Y-sorted objects ───────────────────────────────────────────
   // Trees placed at slope-correct Y positions — higher on slope = lower Y = draws behind
+  // Cave entrance arch — large rocks framing the dark passage at slope height
+  const caveL = ctx.nsp(...NA.ROCK_LG);  caveL.anchor.set(0.5, 1); caveL.x = 2108; caveL.y = GY - 112; caveL.scale.set(0.88); ysort.addChild(caveL)
+  const caveR = ctx.nsp(...NA.ROCK_MED); caveR.anchor.set(0.5, 1); caveR.x = 2155; caveR.y = GY - 120; caveR.scale.set(0.72); ysort.addChild(caveR)
+  const caveT = ctx.nsp(...NA.ROCK_SM);  caveT.anchor.set(0.5, 1); caveT.x = 2132; caveT.y = GY - 128; caveT.scale.set(0.60); ysort.addChild(caveT)
+
   const tr1 = ctx.nsp(...NA.BONSAI_1); tr1.anchor.set(0.5, 1); tr1.x = 1640; tr1.y = GY;       tr1.scale.set(1.00); ysort.addChild(tr1)
   const tr2 = ctx.nsp(...NA.BONSAI_3); tr2.anchor.set(0.5, 1); tr2.x = 1700; tr2.y = GY - 50;  tr2.scale.set(0.85); ysort.addChild(tr2)
   const tr3 = ctx.nsp(...NA.BONSAI_2); tr3.anchor.set(0.5, 1); tr3.x = 1820; tr3.y = GY - 100; tr3.scale.set(0.92); ysort.addChild(tr3)

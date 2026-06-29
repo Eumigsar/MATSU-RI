@@ -83,7 +83,7 @@ export function GameScene() {
       const { sky: skyLay, ysort: ysortLay, particles: partLay } = pipeline.layers
 
       // ── Build world ────────────────────────────────────────────
-      buildSky(skyLay)
+      buildSky(skyLay, ctx)
       buildMountains(pipeline.layers.mountains)
       buildWorld(pipeline.layers, ctx)
 

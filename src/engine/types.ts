@@ -12,6 +12,7 @@ export interface RenderCtx {
   nsp: (x: number, y: number, w: number, h: number) => PIXI.Sprite
   psp: (x: number, y: number, w: number, h: number) => PIXI.Sprite
   tsp: (x: number, y: number, w: number, h: number) => PIXI.Sprite
+  osp: (x: number, y: number, w: number, h: number) => PIXI.Sprite
 }
 
 // ─── Zone layer set ───────────────────────────────────────────────────────────
