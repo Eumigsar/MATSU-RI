@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matsuri RPG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #canvas-container { position: relative; border: 6px solid #5d2e13; border-radius: 15px; overflow: hidden; }
+        .hanzi { font-family: 'Noto Sans SC', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <div id="ui" class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div id="modal" class="hidden pointer-events-auto bg-[#F5F2E9] p-10 rounded-2xl text-center border-4 border-[#8b4513] w-80 shadow-2xl">
+                <h1 class="hanzi text-9xl mb-4 text-[#1a1a1a]">一</h1>
+                <p class="text-2xl text-gray-500 italic mb-1">yī</p>
+                <p class="text-xl font-bold text-gray-800 mb-8">Número Um</p>
+                <button onclick="learn()" class="bg-[#AA0000] text-white w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition">CULTIVAR QI</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let app, player, totem, keys = {};
+        window.onload = function() {
+            app = new PIXI.Application({ width: 800, height: 600, backgroundColor: 0xF5F2E9 });
+            document.getElementById('canvas-container').appendChild(app.view);
+            player = new PIXI.Graphics();
+            player.beginFill(0xAA0000).drawRoundedRect(0, 0, 45, 45, 8).endFill();
+            player.x = 400; player.y = 300;
+            app.stage.addChild(player);
+            if (localStorage.getItem('matsuri_learned_1') !== 'true') {
+                totem = new PIXI.Text('一', { fontFamily: 'Noto Sans SC', fontSize: 80, fill: '#1a1a1a' });
+                totem.x = 150; totem.y = 150; totem.eventMode = 'static'; totem.cursor = 'pointer';
+                totem.on('pointerdown', () => document.getElementById('modal').classList.remove('hidden'));
+                app.stage.addChild(totem);
+            }
+            window.addEventListener("keydown", e => { keys[e.code] = true; if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault(); });
+            window.addEventListener("keyup", e => keys[e.code] = false);
+            app.ticker.add((delta) => {
+                const s = 5 * delta;
+                if (keys["ArrowUp"] || keys["KeyW"]) player.y -= s;
+                if (keys["ArrowDown"] || keys["KeyS"]) player.y += s;
+                if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= s;
+                if (keys["ArrowRight"] || keys["KeyD"]) player.x += s;
+                player.x = Math.max(0, Math.min(800-45, player.x));
+                player.y = Math.max(0, Math.min(600-45, player.y));
+            });
+        };
+        function learn() {
+            localStorage.setItem('matsuri_learned_1', 'true');
+            document.getElementById('modal').classList.add('hidden');
+            if (totem) app.stage.removeChild(totem);
+            alert("Sucesso! Você aprendeu o caractere 一 (yī).");
+        }
+    </script>
+</body>
+</html>
+

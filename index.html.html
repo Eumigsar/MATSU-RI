@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matsuri MVP-0.1: O Despertar do Escriba</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PixiJS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; margin: 0 auto; border: 4px solid #333; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 50; }
+        .modal.active { display: flex; }
+        #hud { pointer-events: none; }
+        .btn-interact { pointer-events: auto; }
+    </style>
+</head>
+<body>
+
+    <!-- HUD -->
+    <div id="hud" class="fixed top-0 left-0 w-full p-4 flex justify-between items-start text-white z-40">
+        <div class="bg-black/50 p-4 rounded-lg border border-yellow-600/50">
+            <h2 class="text-xl font-bold text-yellow-500">Matsuri MVP-0.1</h2>
+            <p id="mission-name">Missão: <span class="text-white font-normal">O Despertar do Escriba</span></p>
+            <div class="w-48 bg-gray-700 h-2 mt-2 rounded-full overflow-hidden">
+                <div id="mission-bar" class="bg-yellow-500 h-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p class="text-sm mt-1">Progresso: <span id="progress-text">0/5</span></p>
+        </div>
+        
+        <div class="bg-black/50 p-4 rounded-lg border border-blue-600/50 text-right">
+            <p class="text-blue-400 font-bold">Aprendiz: <span id="player-xp" class="text-white">0</span> XP</p>
+            <p id="cosmetic-tag" class="text-xs text-green-400 hidden italic mt-1">★ Faixa do Estudante Iniciante Equipada</p>
+        </div>
+    </div>
+
+    <!-- Modal Hanzi -->
+    <div id="hanzi-modal" class="modal">
+        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl transform transition-all border-8 border-yellow-600">
+            <h1 id="modal-hanzi" class="text-9xl mb-4 text-black font-serif">一</h1>
+            <p id="modal-pinyin" class="text-3xl text-gray-500 italic">yī</p>
+            <p id="modal-meaning" class="text-2xl font-bold text-gray-800 mb-6">um</p>
+            <button id="btn-cultivate" class="w-full bg-red-700 hover:bg-red-800 text-white font-bold py-4 rounded-xl text-xl shadow-lg transition-transform active:scale-95 btn-interact">
+                CULTIVAR
+            </button>
+            <button id="btn-close" class="mt-4 text-gray-400 hover:text-gray-600 text-sm underline btn-interact">Depois...</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const HANZI_DATA = [
+            { id: 'h1', char: '一', pinyin: 'yī', meaning: 'um', x: 200, y: 200 },
+            { id: 'h2', char: '二', pinyin: 'èr', meaning: 'dois', x: 600, y: 150 },
+            { id: 'h3', char: '三', pinyin: 'sān', meaning: 'três', x: 700, y: 450 },
+            { id: 'h4', char: '人', pinyin: 'rén', meaning: 'pessoa', x: 150, y: 500 },
+            { id: 'h5', char: '大', pinyin: 'dà', meaning: 'grande', x: 400, y: 350 }
+        ];
+
+        let gameState = {
+            xp: 0,
+            learned: [],
+            missionComplete: false
+        };
+
+        // --- ENGINE SETUP ---
+        const app = new PIXI.Application({
+            width: 800,
+            height: 600,
+            backgroundColor: 0x2d5a27, // Verde grama
+            antialias: true
+        });
+        document.body.appendChild(app.view);
+
+        const world = new PIXI.Container();
+        app.stage.addChild(world);
+
+        // --- LOAD PROGRESS ---
+        function loadGame() {
+            const saved = localStorage.getItem('matsuri_mvp_v1');
+            if (saved) {
+                gameState = JSON.parse(saved);
+                updateHUD();
+            }
+        }
+
+        function saveGame() {
+            localStorage.setItem('matsuri_mvp_v1', JSON.stringify(gameState));
+        }
+
+        // --- GRAPHICS ---
+        function createPlayer() {
+            const container = new PIXI.Container();
+            
+            // Corpo (Círculo)
+            const body = new PIXI.Graphics();
+            body.beginFill(0x3498db);
+            body.drawCircle(0, 0, 20);
+            body.endFill();
+            container.addChild(body);
+
+            // Faixa (Cosmético)
+            const headband = new PIXI.Graphics();
+            headband.beginFill(0xffffff);
+            headband.drawRect(-22, -10, 44, 5); // Branca
+            headband.endFill();
+            headband.visible = gameState.missionComplete;
+            container.addChild(headband);
+            container.headband = headband;
+
+            container.x = 400;
+            container.y = 300;
+            return container;
+        }
+
+        function createTotem(data) {
+            const container = new PIXI.Container();
+            container.id = data.id;
+
+            const base = new PIXI.Graphics();
+            base.beginFill(0x8e44ad); // Roxo místico
+            base.drawPolygon([-15, 30, 15, 30, 0, -20]);
+            base.endFill();
+            container.addChild(base);
+
+            const label = new PIXI.Text(data.char, { fontSize: 24, fill: 0xffffff });
+            label.anchor.set(0.5);
+            label.y = -40;
+            container.addChild(label);
+
+            container.x = data.x;
+            container.y = data.y;
+            
+            // Se já aprendido, sumir
+            if (gameState.learned.includes(data.id)) {
+                container.alpha = 0.3;
+            }
+
+            return container;
+        }
+
+        const player = createPlayer();
+        const totens = [];
+        HANZI_DATA.forEach(h => {
+            const t = createTotem(h);
+            totens.push(t);
+            world.addChild(t);
+        });
+        world.addChild(player);
+
+        // --- INPUT ---
+        const keys = {};
+        window.onkeydown = (e) => keys[e.code] = true;
+        window.onkeyup = (e) => keys[e.code] = false;
+
+        // --- LOGIC ---
+        let activeHanzi = null;
+
+        function updateHUD() {
+            document.getElementById('player-xp').innerText = gameState.xp;
+            document.getElementById('progress-text').innerText = `${gameState.learned.length}/5`;
+            document.getElementById('mission-bar').style.width = `${(gameState.learned.length / 5) * 100}%`;
+            
+            if (gameState.missionComplete) {
+                document.getElementById('cosmetic-tag').classList.remove('hidden');
+                player.headband.visible = true;
+                document.getElementById('mission-name').innerHTML = "Missão: <span class='text-green-400 font-bold'>Concluída!</span>";
+            }
+        }
+
+        function checkInteractions() {
+            totens.forEach(t => {
+                const dist = Math.sqrt((player.x - t.x)**2 + (player.y - t.y)**2);
+                if (dist < 40 && !gameState.learned.includes(t.id)) {
+                    openModal(t.id);
+                }
+            });
+        }
+
+        function openModal(id) {
+            const data = HANZI_DATA.find(h => h.id === id);
+            activeHanzi = data;
+            document.getElementById('modal-hanzi').innerText = data.char;
+            document.getElementById('modal-pinyin').innerText = data.pinyin;
+            document.getElementById('modal-meaning').innerText = data.meaning;
+            document.getElementById('hanzi-modal').classList.add('active');
+        }
+
+        document.getElementById('btn-close').onclick = () => {
+            document.getElementById('hanzi-modal').classList.remove('active');
+            activeHanzi = null;
+        };
+
+        document.getElementById('btn-cultivate').onclick = () => {
+            if (activeHanzi && !gameState.learned.includes(activeHanzi.id)) {
+                gameState.learned.push(activeHanzi.id);
+                gameState.xp += 100;
+                
+                // Atualizar visual do totem
+                const t = totens.find(tot => tot.id === activeHanzi.id);
+                if (t) t.alpha = 0.3;
+
+                if (gameState.learned.length === 5) {
+                    gameState.missionComplete = true;
+                    alert("Missão Concluída! Você recebeu a Faixa do Estudante Iniciante.");
+                }
+
+                saveGame();
+                updateHUD();
+                document.getElementById('hanzi-modal').classList.remove('active');
+                activeHanzi = null;
+            }
+        };
+
+        // --- GAME LOOP ---
+        app.ticker.add((delta) => {
+            const speed = 4;
+            if (keys['KeyW'] || keys['ArrowUp']) player.y -= speed;
+            if (keys['KeyS'] || keys['ArrowDown']) player.y += speed;
+            if (keys['KeyA'] || keys['ArrowLeft']) player.x -= speed;
+            if (keys['KeyD'] || keys['ArrowRight']) player.x += speed;
+
+            // Limites do mapa
+            player.x = Math.max(20, Math.min(780, player.x));
+            player.y = Math.max(20, Math.min(580, player.y));
+
+            checkInteractions();
+        });
+
+        // Init
+        loadGame();
+    </script>
+</body>
+</html>
