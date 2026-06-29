@@ -6,6 +6,7 @@ import type { HanziData } from '../types'
 import { W, H, WW, WH, GY, FW, FH, K } from '../world/constants'
 import { RenderPipeline } from '../engine/RenderPipeline'
 import { AtlasRegistry, OA } from '../engine/AtlasRegistry'
+import { CharacterRenderer } from '../engine/CharacterRenderer'
 import { buildSky, buildMountains, buildWorld } from '../world/buildWorld'
 import { moveInput, DEAD_ZONE, RUN_THRESHOLD, RUN_SPEED_MULT } from '../input/InputState'
 import { MobileControls } from '../input/MobileControls'
@@ -61,10 +62,10 @@ export function GameScene() {
       await registry.load()
       const ctx = registry.buildCtx()
 
-      const [playerWalkTex, sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex,
+      const charRenderer = await CharacterRenderer.load()
+      const [sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex,
              jadeWalkTex, redWalkTex, dragonTex] =
         await Promise.all([
-          AtlasRegistry.loadWalkTex('/assets/characters/player_apprentice_blue_walk.png'),
           AtlasRegistry.loadWalkTex('/assets/characters/sifu_liang_walk.png'),
           AtlasRegistry.loadWalkTex('/assets/characters/grandma_zhang_walk.png'),
           AtlasRegistry.loadWalkTex('/assets/characters/hua_lan_walk.png'),
@@ -184,21 +185,10 @@ export function GameScene() {
       const playerShadow = new PIXI.Graphics()
       playerShadow.ellipse(0, 0, 20, 7).fill({ color: 0x000000, alpha: 0.18 })
 
-      const playerFrames = {
-        down:  mkFrames(playerWalkTex, 0),
-        left:  mkFrames(playerWalkTex, 1),
-        right: mkFrames(playerWalkTex, 2),
-        up:    mkFrames(playerWalkTex, 3),
-      }
-      const playerSpr = new PIXI.AnimatedSprite(playerFrames.down)
-      playerSpr.anchor.set(0.5, 1.0); playerSpr.scale.set(2.5); playerSpr.animationSpeed = 0.12; playerSpr.play()
-
-      const player = new PIXI.Container()
-      player.addChild(playerSpr)
-      player.x = 210; player.y = GY
+      let playerX = 210, playerY = GY
       playerShadow.x = 210; playerShadow.y = GY + 5
-      ysortLay.addChild(playerShadow, player)
-      let playerDir: keyof typeof playerFrames = 'down'
+      ysortLay.addChild(playerShadow)
+      let playerDir: 'down' | 'left' | 'right' | 'up' = 'down'
 
       // ── Falling leaves ─────────────────────────────────────────
       interface Leaf { g: PIXI.Sprite; x: number; y: number; vx: number; vy: number; rot: number }
@@ -291,28 +281,19 @@ export function GameScene() {
         // Player movement
         const moving = speedMult > 0
         if (moving) {
-          player.x += mx * spd * speedMult
-          player.y += my * spd * speedMult
-          const newDir: keyof typeof playerFrames =
-            (Math.abs(my) >= Math.abs(mx)) ? (my > 0 ? 'down' : 'up') : (mx > 0 ? 'right' : 'left')
-          if (newDir !== playerDir) {
-            playerDir = newDir
-            playerSpr.textures = playerFrames[playerDir]
-            playerSpr.gotoAndPlay(0)
-          }
-          if (!playerSpr.playing) playerSpr.play()
-        } else {
-          playerSpr.stop()
-          playerSpr.currentFrame = 0
+          playerX += mx * spd * speedMult
+          playerY += my * spd * speedMult
+          playerDir = (Math.abs(my) >= Math.abs(mx)) ? (my > 0 ? 'down' : 'up') : (mx > 0 ? 'right' : 'left')
         }
-        player.x = Math.max(16, Math.min(WW - 16, player.x))
-        player.y = Math.max(520, Math.min(WH - 16, player.y))
-        playerShadow.x = player.x + 4
-        playerShadow.y = player.y + 5
+        playerX = Math.max(16, Math.min(WW - 16, playerX))
+        playerY = Math.max(520, Math.min(WH - 16, playerY))
+        playerShadow.x = playerX + 4
+        playerShadow.y = playerY + 5
+        charRenderer.render(ysortLay, 'r0_c0', 'idle', playerDir, 0, playerX, playerY)
 
         // Camera smooth follow
-        targetCam.x = player.x - W / 2
-        targetCam.y = player.y - H / 2 - 60
+        targetCam.x = playerX - W / 2
+        targetCam.y = playerY - H / 2 - 60
         camX += (targetCam.x - camX) * 0.1
         camY += (targetCam.y - camY) * 0.1
         camX = Math.max(0, Math.min(WW - W, camX))
