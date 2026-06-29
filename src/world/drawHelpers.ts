@@ -16,14 +16,6 @@ export function drawDirt(g: PIXI.Graphics, x: number, y: number, w: number, h: n
   }
 }
 
-export function drawWater(g: PIXI.Graphics, x: number, y: number, w: number, h: number) {
-  g.rect(x, y, w, h).fill(K.wD)
-  g.rect(x, y, w, h * 0.35).fill({ color: K.wM, alpha: 0.55 })
-  for (let i = 0; i < 5; i++) {
-    g.rect(x + w * 0.04, y + h * (0.12 + i * 0.17), w * 0.92, 3).fill({ color: K.wL, alpha: 0.28 })
-  }
-}
-
 export function drawStoneWall(g: PIXI.Graphics, x: number, y: number, w: number, h = 42) {
   g.rect(x, y, w, h).fill(K.stoneD)
   const bw = 38, bh = 20
@@ -34,15 +26,6 @@ export function drawStoneWall(g: PIXI.Graphics, x: number, y: number, w: number,
       const l = Math.max(bx + 1, x), r = Math.min(bx + bw - 2, x + w)
       if (r > l) g.rect(l, by + 1, r - l, bh - 2).fill(K.stone)
     }
-  }
-}
-
-export function drawFence(g: PIXI.Graphics, x: number, y: number, w: number) {
-  g.rect(x, y - 12, w, 4).fill(K.woodD)
-  g.rect(x, y - 24, w, 4).fill(K.woodD)
-  for (let i = 0; i * 18 < w; i++) {
-    g.rect(x + i * 18, y - 36, 10, 36).fill(K.wood)
-    g.rect(x + i * 18, y - 38, 10,  5).fill({ color: 0x000000, alpha: 0.25 })
   }
 }
 

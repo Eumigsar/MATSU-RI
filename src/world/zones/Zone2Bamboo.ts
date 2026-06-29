@@ -25,11 +25,9 @@ export function buildZone2Bamboo(layers: ZoneLayers, ctx: RenderCtx): void {
   // ── Infrastructure ─────────────────────────────────────────────
   const br = new PIXI.Graphics(); drawBridge(br, 710, GY, 88); infra.addChild(br)
 
-  const bench = new PIXI.Graphics()
-  bench.rect(840, GY - 24, 60, 10).fill(K.stoneL)
-  bench.rect(843, GY - 14,  8, 14).fill(K.stone)
-  bench.rect(889, GY - 14,  8, 14).fill(K.stone)
-  infra.addChild(bench)
+  // Rest stones beside the path — ysort so player can pass behind/in front
+  const rs1 = ctx.nsp(...NA.ROCK_SM); rs1.anchor.set(0.5, 1); rs1.x = 850; rs1.y = GY; rs1.scale.set(0.52); ysort.addChild(rs1)
+  const rs2 = ctx.nsp(...NA.ROCK_SM); rs2.anchor.set(0.5, 1); rs2.x = 878; rs2.y = GY; rs2.scale.set(0.44); ysort.addChild(rs2)
 
   drawSign(infra, 580, GY, '竹林徑')
   drawSign(infra, 760, GY, '清溪橋')

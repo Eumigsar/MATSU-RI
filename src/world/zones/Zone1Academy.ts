@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
-import { GY, K, rng } from '../constants'
-import { BA, NA, PA } from '../../engine/AtlasRegistry'
+import { GY, K } from '../constants'
+import { BA, NA, OA, PA } from '../../engine/AtlasRegistry'
 import { drawStoneWall, drawLantern } from '../drawHelpers'
 import type { RenderCtx, ZoneLayers } from '../../engine/types'
 
@@ -64,17 +64,16 @@ export function buildZone1Academy(layers: ZoneLayers, ctx: RenderCtx): void {
 
   ground.addChild(pathG)
 
-  // ── Cherry blossom petals scattered on the courtyard ─────────────
-  // Concentrated in entrance courtyard + training square. Not random — they
-  // accumulate where foot traffic stops and the trees overhang.
-  const petals = new PIXI.Graphics()
-  for (let i = 0; i < 28; i++) {
-    const px = 110 + rng(i, 10) * 268
-    const py = 630 + rng(i, 11) * 140
-    petals.ellipse(px, py, 4 + rng(i, 12) * 3, 2 + rng(i, 13) * 2)
-          .fill({ color: K.cherryB, alpha: 0.55 })
-  }
-  ground.addChild(petals)
+  // Cherry blossom petals — overlay atlas sprites at courtyard entrance and training square
+  const petalCoords: [number, number][] = [[170, GY + 30], [250, GY + 42], [340, GY + 22], [440, GY + 36]]
+  petalCoords.forEach(([px, py], i) => {
+    const p = ctx.osp(...OA.PETAL_HEAP)
+    p.anchor.set(0.5, 0.5); p.x = px; p.y = py; p.scale.set(0.45 + i * 0.04); p.alpha = 0.62
+    ground.addChild(p)
+  })
+  const goldHeap = ctx.osp(...OA.GOLD_HEAP)
+  goldHeap.anchor.set(0.5, 0.5); goldHeap.x = 310; goldHeap.y = GY + 28; goldHeap.scale.set(0.38); goldHeap.alpha = 0.50
+  ground.addChild(goldHeap)
 
   // ══════════════════════════════════════════════════════════════════
   // INFRASTRUCTURE — perimeter walls, steps, lanterns, signs

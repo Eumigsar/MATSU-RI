@@ -33,15 +33,9 @@ export function buildZone5Temple(layers: ZoneLayers, ctx: RenderCtx): void {
   // Stone guardian rocks flanking courtyard entrance (replace procedural statues)
   // Added to ysort so player can pass behind/in front of them
 
-  // Dao/De/Ren tablets
-  const tab = new PIXI.Graphics()
-  for (let i = 0; i < 3; i++) {
-    const tx = 2310 + i * 80
-    tab.rect(tx - 10, GY - 90, 20, 90).fill(K.stoneD)
-    tab.rect(tx - 8,  GY - 88, 16, 86).fill(K.stone)
-  }
-  infra.addChild(tab)
+  // Dao/De/Ren stone tablet posts — atlas stone lantern at stele scale + character overlay
   ;([['道', 2310], ['德', 2390], ['仁', 2470]] as [string, number][]).forEach(([ch, tx]) => {
+    const post = ctx.psp(...PA.STONE_LAN); post.anchor.set(0.5, 1); post.x = tx; post.y = GY; post.scale.set(0.42); infra.addChild(post)
     const t = new PIXI.Text({ text: ch, style: { fontSize: 18, fill: '#3A2010', fontFamily: '"Noto Serif SC",serif' } })
     t.anchor.set(0.5, 0.5); t.x = tx; t.y = GY - 48; infra.addChild(t)
   })
@@ -49,14 +43,11 @@ export function buildZone5Temple(layers: ZoneLayers, ctx: RenderCtx): void {
   // Lanterns along courtyard
   for (let i = 0; i < 5; i++) drawLantern(infra, 2230 + i * 100, GY - 90)
 
-  // Building name signs
-  const mkS = (text: string, x: number, y: number) => {
-    const g = new PIXI.Graphics(); g.rect(x - 36, y, 72, 24).fill(K.redD); infra.addChild(g)
-    const t = new PIXI.Text({ text, style: { fontSize: 13, fill: '#F0D050', fontFamily: '"Noto Serif SC",serif', fontWeight: '700' } })
-    t.anchor.set(0.5, 0.5); t.x = x; t.y = y + 12; infra.addChild(t)
-  }
-  mkS('鐘樓', 2286, GY - 138)
-  mkS('古刹',  2510, GY - 145)
+  // Building name signs — text only, no backing rect
+  ;([['鐘樓', 2286, GY - 126], ['古刹', 2510, GY - 133]] as [string, number, number][]).forEach(([text, x, y]) => {
+    const t = new PIXI.Text({ text, style: { fontSize: 13, fill: '#E8C050', fontFamily: '"Noto Serif SC",serif', fontWeight: '700' } })
+    t.anchor.set(0.5, 0.5); t.x = x; t.y = y; infra.addChild(t)
+  })
 
   // Main gate title
   const gateT = new PIXI.Text({ text: '學府門', style: { fontSize: 14, fill: '#E8C050', fontFamily: '"Noto Serif SC",serif', fontWeight: '700' } })

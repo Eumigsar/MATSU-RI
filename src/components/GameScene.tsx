@@ -5,7 +5,7 @@ import { TONE_COLORS } from '../types'
 import type { HanziData } from '../types'
 import { W, H, WW, WH, GY, FW, FH, K } from '../world/constants'
 import { RenderPipeline } from '../engine/RenderPipeline'
-import { AtlasRegistry } from '../engine/AtlasRegistry'
+import { AtlasRegistry, OA } from '../engine/AtlasRegistry'
 import { buildSky, buildMountains, buildWorld } from '../world/buildWorld'
 import { moveInput, DEAD_ZONE, RUN_THRESHOLD, RUN_SPEED_MULT } from '../input/InputState'
 import { MobileControls } from '../input/MobileControls'
@@ -201,17 +201,19 @@ export function GameScene() {
       let playerDir: keyof typeof playerFrames = 'down'
 
       // ── Falling leaves ─────────────────────────────────────────
-      interface Leaf { g: PIXI.Graphics; x: number; y: number; vx: number; vy: number; rot: number; color: number }
-      const leafColors = [K.cherry, K.cherryB, K.leaf, K.leafL, K.grassL]
+      interface Leaf { g: PIXI.Sprite; x: number; y: number; vx: number; vy: number; rot: number }
+      const leafAtlasCoords = [OA.PETAL_HEAP, OA.GOLD_HEAP]
       const leaves: Leaf[] = []
       for (let i = 0; i < 40; i++) {
-        const lg = new PIXI.Graphics()
-        const lc = leafColors[i % leafColors.length]
-        lg.ellipse(0, 0, 6, 3).fill({ color: lc, alpha: 0.7 })
+        const coord = leafAtlasCoords[i % leafAtlasCoords.length]
+        const lg = ctx.osp(coord[0], coord[1], coord[2], coord[3])
+        lg.anchor.set(0.5, 0.5)
+        lg.scale.set(0.055 + Math.random() * 0.025)
+        lg.alpha = 0.55 + Math.random() * 0.30
         const lx = Math.random() * WW, ly = 580 + Math.random() * 200
         lg.x = lx; lg.y = ly
         partLay.addChild(lg)
-        leaves.push({ g: lg, x: lx, y: ly, vx: (Math.random() - 0.5) * 0.8, vy: 0.4 + Math.random() * 0.6, rot: Math.random() * Math.PI * 2, color: lc })
+        leaves.push({ g: lg, x: lx, y: ly, vx: (Math.random() - 0.5) * 0.8, vy: 0.4 + Math.random() * 0.6, rot: Math.random() * Math.PI * 2 })
       }
 
       // ── Smoke emitters ─────────────────────────────────────────
