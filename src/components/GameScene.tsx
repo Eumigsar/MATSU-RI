@@ -3,7 +3,7 @@ import * as PIXI from 'pixi.js'
 import { useGameStore } from '../stores/gameStore'
 import { TONE_COLORS } from '../types'
 import type { HanziData } from '../types'
-import { W, H, WW, WH, GY, FW, FH, K } from '../world/constants'
+import { W, H, WW, WH, GY, K } from '../world/constants'
 import { RenderPipeline } from '../engine/RenderPipeline'
 import { AtlasRegistry, OA } from '../engine/AtlasRegistry'
 import { CharacterRenderer } from '../engine/CharacterRenderer'
@@ -65,21 +65,7 @@ export function GameScene() {
       const ctx = registry.buildCtx()
 
       const charRenderer = await CharacterRenderer.load()
-      const [sifuWalkTex, grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex,
-             jadeWalkTex, redWalkTex, dragonTex] =
-        await Promise.all([
-          AtlasRegistry.loadWalkTex('/assets/characters/sifu_liang_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/grandma_zhang_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/hua_lan_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/wen_bo_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/little_wu_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/player_apprentice_jade_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/player_apprentice_red_walk.png'),
-          AtlasRegistry.loadWalkTex('/assets/characters/xiao_long_paper_dragon_float.png'),
-        ])
-
-      const mkFrames = (tex: PIXI.Texture, row: number): PIXI.Texture[] =>
-        [0, 1, 2, 3].map(col => new PIXI.Texture({ source: tex.source, frame: new PIXI.Rectangle(col * FW, row * FH, FW, FH) }))
+      const dragonTex = await AtlasRegistry.loadWalkTex('/assets/characters/xiao_long_paper_dragon_float.png')
 
       // ── Render pipeline ────────────────────────────────────────
       const pipeline = new RenderPipeline(app.stage)
@@ -94,23 +80,20 @@ export function GameScene() {
       const npc = new PIXI.Container()
       npc.x = 290; npc.y = GY
       npc.eventMode = 'static'; npc.cursor = 'pointer'
-      const sifuSpr = new PIXI.AnimatedSprite(mkFrames(sifuWalkTex, 0))
-      sifuSpr.anchor.set(0.5, 1); sifuSpr.scale.set(2.5); sifuSpr.animationSpeed = 0.05; sifuSpr.play()
+      charRenderer.render(npc, 'r0_c1', 'idle', 'down', 0, 0, 0)
       const npcLbl = new PIXI.Text({ text: '師父 Liang', style: { fontSize: 9, fill: '#C9A84C', fontFamily: 'Georgia,serif' } })
       npcLbl.anchor.set(0.5, 0); npcLbl.y = 4
-      npc.addChild(sifuSpr, npcLbl)
-      npc.on('pointerover', () => { sifuSpr.tint = 0xFFEECC })
-      npc.on('pointerout',  () => { sifuSpr.tint = 0xFFFFFF })
+      npc.addChild(npcLbl)
       npc.on('pointerdown', () => setNpcText('Discípulo... os pergaminhos dos números aguardam. Encontre os cinco orbes de Hanzi espalhados por este mundo — da Academia até o Templo Antigo. Apenas o cultivo verdadeiro desperta o Qi interior.'))
       ysortLay.addChild(npc)
 
       // ── Wandering NPCs ─────────────────────────────────────────
+      const WALKER_IDS = ['r0_c2', 'r0_c3', 'r0_c4', 'r0_c5', 'r1_c0', 'r1_c1']
       interface WalkNPC {
         cont: PIXI.Container; dir: number; spd: number; min: number; max: number; t: number
-        spr: PIXI.AnimatedSprite; leftFrames: PIXI.Texture[]; rightFrames: PIXI.Texture[]
+        ctrl: AnimationController; charId: string
       }
       const walkers: WalkNPC[] = []
-      const npcWalkTexes = [grandmaWalkTex, huaWalkTex, wenWalkTex, wuWalkTex, jadeWalkTex, redWalkTex]
       const npcZones = [
         { x: 230,  min: 130,  max: 420  },
         { x: 1180, min: 1140, max: 1280 },
@@ -122,15 +105,12 @@ export function GameScene() {
       npcZones.forEach((z, i) => {
         const wc = new PIXI.Container()
         wc.x = z.x; wc.y = GY
-        const wTex = npcWalkTexes[i % npcWalkTexes.length]
-        const leftFrames  = mkFrames(wTex, 1)
-        const rightFrames = mkFrames(wTex, 2)
-        const initRight = i % 2 === 0
-        const wSpr = new PIXI.AnimatedSprite(initRight ? rightFrames : leftFrames)
-        wSpr.anchor.set(0.5, 1); wSpr.scale.set(2.5); wSpr.animationSpeed = 0.1; wSpr.play()
-        wc.addChild(wSpr)
+        const charId = WALKER_IDS[i % WALKER_IDS.length]
+        const ctrl = new AnimationController(charRenderer.getAnimations(charId))
+        const initDir: Direction = i % 2 === 0 ? 'right' : 'left'
+        ctrl.setState('walk', initDir)
         ysortLay.addChild(wc)
-        walkers.push({ cont: wc, dir: initRight ? 1 : -1, spd: 0.5 + Math.random() * 0.4, min: z.min, max: z.max, t: Math.random() * 200, spr: wSpr, leftFrames, rightFrames })
+        walkers.push({ cont: wc, dir: i % 2 === 0 ? 1 : -1, spd: 0.5 + Math.random() * 0.4, min: z.min, max: z.max, t: Math.random() * 200, ctrl, charId })
       })
 
       // ── Orbs ───────────────────────────────────────────────────
@@ -316,12 +296,12 @@ export function GameScene() {
           w.t += tk.deltaTime
           w.cont.x += w.dir * w.spd * tk.deltaTime
           const newDir = w.cont.x > w.max ? -1 : w.cont.x < w.min ? 1 : w.dir
-          if (newDir !== w.dir) {
-            w.dir = newDir
-            w.spr.textures = w.dir > 0 ? w.rightFrames : w.leftFrames
-            w.spr.gotoAndPlay(0)
-          }
+          if (newDir !== w.dir) w.dir = newDir
+          const wDir: Direction = w.dir > 0 ? 'right' : 'left'
+          w.ctrl.setState('walk', wDir)
+          w.ctrl.update(tk.deltaTime)
           w.cont.y = GY + Math.abs(Math.sin(w.t * 0.15)) * 3
+          charRenderer.render(w.cont, w.charId, w.ctrl.animation, w.ctrl.direction, w.ctrl.frameIndex, 0, 0)
         })
 
         // Falling leaves
